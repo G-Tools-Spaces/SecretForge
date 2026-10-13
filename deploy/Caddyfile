@@ -1,0 +1,10 @@
+# SecretForge HTTPS reverse proxy.
+#
+# 1. Replace vault.example.com with your real domain (DNS must point at this host).
+# 2. Run:  docker compose --profile tls up -d
+# Caddy obtains and renews Let's Encrypt certificates automatically and forces HTTPS.
+
+vault.example.com {
+	encode gzip
+	reverse_proxy api:4000
+}

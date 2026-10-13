@@ -1,0 +1,234 @@
+// SecretForge database schema.
+//
+// Security notes:
+//  - Secret VALUES are never stored in plaintext: `encryptedValue` is AES-256-GCM
+//    ciphertext (base64) with a unique `iv` and `authTag` per write.
+//  - Each project has its own data key (`Project.wrappedDataKey`), itself encrypted
+//    by the master key (envelope encryption). The master key lives ONLY in the
+//    environment — never in this database or this repo.
+//  - Refresh tokens and service tokens are stored hashed (SHA-256), never plaintext.
+//
+// Deviation from the original plan: `cli_sessions` is named `Session` and serves
+// both web logins and (Phase 3) CLI device sessions.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum ProjectRole {
+  ADMIN
+  WRITE
+  READ
+}
+
+enum ActorType {
+  USER
+  TOKEN
+  SYSTEM
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  totpSecret   String? // Phase 7: TOTP 2FA (encrypted at rest when enabled)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orgMemberships    OrgMember[]
+  projectMemberships ProjectMember[]
+  sessions          Session[]
+  auditLogs         AuditLog[]
+  sentInvites       OrgInvite[] @relation("Inviter")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  OrgMember[]
+  projects Project[]
+  invites  OrgInvite[]
+}
+
+model OrgMember {
+  id       String   @id @default(cuid())
+  orgId    String
+  userId   String
+  role     OrgRole
+  joinedAt DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+model OrgInvite {
+  id          String    @id @default(cuid())
+  orgId       String
+  email       String
+  role        OrgRole   @default(MEMBER)
+  token       String    @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitedBy User         @relation("Inviter", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@index([email])
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  orgId          String
+  name           String
+  slug           String
+  // base64 "<ciphertext>.<iv>.<authTag>" — the project data key wrapped by the master key.
+  wrappedDataKey String
+  ipAllowlist    String[] @default([]) // wireframe: "Allowed IPs" page
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  org          Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  members      ProjectMember[]
+  environments Environment[]
+  // NOTE: AuditLog.projectId is intentionally a plain string (no FK) so audit
+  // entries survive project deletion. Query via AuditLog.projectId directly.
+
+  @@unique([orgId, slug])
+  @@index([orgId])
+}
+
+model ProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectRole
+  addedAt   DateTime    @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model Environment {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String // dev | staging | prod (or custom)
+  createdAt DateTime @default(now())
+
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  secrets       Secret[]
+  serviceTokens ServiceToken[]
+
+  @@unique([projectId, name])
+}
+
+model Secret {
+  id             String    @id @default(cuid())
+  environmentId  String
+  key            String // e.g. STRIPE_SECRET_KEY — key NAMES are safe to display/audit
+  encryptedValue String // base64 AES-256-GCM ciphertext
+  iv             String // base64, unique per write
+  authTag        String // base64 GCM auth tag
+  version        Int       @default(1)
+  rotatedAt      DateTime  @default(now()) // wireframe: rotation-due tracking
+  updatedById    String?
+  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+
+  environment Environment     @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  versions    SecretVersion[]
+
+  @@unique([environmentId, key])
+  @@index([environmentId])
+}
+
+model SecretVersion {
+  id             String   @id @default(cuid())
+  secretId       String
+  encryptedValue String
+  iv             String
+  authTag        String
+  version        Int
+  changedById    String?
+  changedAt      DateTime  @default(now())
+
+  secret Secret @relation(fields: [secretId], references: [id], onDelete: Cascade)
+
+  @@unique([secretId, version])
+}
+
+model ServiceToken {
+  id           String    @id @default(cuid())
+  environmentId String
+  name         String
+  hashedToken  String    @unique // SHA-256 of the sf_... token
+  scope        String    @default("read") // read-only by design
+  ipAllowlist  String[]  @default([])
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  environment Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+
+  @@index([environmentId])
+}
+
+model Session {
+  id                 String    @id @default(cuid())
+  userId             String
+  hashedRefreshToken String    @unique
+  device             String? // browser UA or CLI device name (Phase 3)
+  ip                 String?
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  createdAt          DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String    @id @default(cuid())
+  actorType ActorType @default(USER)
+  userId    String? // null for token/system actors
+  orgId     String?
+  projectId String?
+  action    String // e.g. LOGIN, SECRET_REVEALED, SECRET_READ_DENIED
+  resource  String // e.g. "project/prj_x/env/prod/secret/STRIPE_SECRET_KEY"
+  ip        String?
+  meta      Json? // sanitized — NEVER put secret values here (see AuditService.sanitizeMeta)
+  createdAt DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([orgId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}

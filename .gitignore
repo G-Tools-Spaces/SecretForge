@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment — NEVER commit real secrets
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+
+# OS
+.DS_Store
+
+# Local databases
+*.db
+
+# NOTE: `.secretforge.json` (project link file) is intentionally NOT ignored —
+# it contains only a project ID + default env name and is safe to commit.

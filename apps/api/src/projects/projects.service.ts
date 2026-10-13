@@ -1,0 +1,241 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { EnvelopeEncryptionService } from '../crypto/envelope-encryption.service';
+import { AuditService } from '../audit/audit.service';
+import { OrgsService } from '../orgs/orgs.service';
+import { slugify } from '../orgs/orgs.service';
+import { CreateProjectDto, AddProjectMemberDto } from './dto';
+import { ProjectRole } from './project-role.decorator';
+
+/** Default environments created with every project (per the plan). */
+const DEFAULT_ENVS = ['dev', 'staging', 'prod'];
+
+@Injectable()
+export class ProjectsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly crypto: EnvelopeEncryptionService,
+    private readonly audit: AuditService,
+    private readonly orgs: OrgsService,
+  ) {}
+
+  /**
+   * Create a project:
+   *  1. Verify the caller is an org member.
+   *  2. Generate a fresh per-project data key, wrapped by the master key.
+   *  3. Create dev/staging/prod environments.
+   *  4. Add the creator as project ADMIN.
+   */
+  async create(userId: string, orgId: string, dto: CreateProjectDto, ip?: string) {
+    await this.orgs.requireMembership(orgId, userId);
+
+    const base = slugify(dto.name) || 'project';
+    let slug = base;
+    let n = 1;
+    while (await this.prisma.project.findUnique({ where: { orgId_slug: { orgId, slug } } })) {
+      slug = `${base}-${++n}`;
+    }
+
+    const wrappedDataKey = this.crypto.generateWrappedDataKey();
+
+    const project = await this.prisma.project.create({
+      data: {
+        orgId,
+        name: dto.name,
+        slug,
+        wrappedDataKey,
+        environments: {
+          create: DEFAULT_ENVS.map((name) => ({ name })),
+        },
+        members: {
+          create: { userId, role: dto.creatorRole ?? 'ADMIN' },
+        },
+      },
+      include: {
+        environments: { select: { id: true, name: true } },
+        members: { include: { user: { select: { id: true, email: true, name: true } } } },
+      },
+    });
+
+    await this.audit.record({
+      action: 'PROJECT_CREATED',
+      userId,
+      orgId,
+      projectId: project.id,
+      resource: `project/${project.id}`,
+      ip,
+      meta: { name: project.name, slug: project.slug, envs: DEFAULT_ENVS },
+    });
+
+    // Never expose the wrapped data key in API responses.
+    const { wrappedDataKey: _wdk, ...safe } = project;
+    return safe;
+  }
+
+  /** Projects visible to the user: their orgs' projects they are members of. */
+  async listForUser(userId: string) {
+    const memberships = await this.prisma.projectMember.findMany({
+      where: { userId },
+      select: { projectId: true, role: true },
+    });
+    if (memberships.length === 0) return [];
+
+    return this.prisma.project.findMany({
+      where: { id: { in: memberships.map((m) => m.projectId) } },
+      include: {
+        org: { select: { id: true, name: true, slug: true } },
+        environments: { select: { id: true, name: true } },
+        _count: { select: { members: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async get(projectId: string, userId: string) {
+    const member = await this.prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId } },
+    });
+    if (!member) throw new ForbiddenException('You do not have access to this project');
+
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        org: { select: { id: true, name: true, slug: true } },
+        environments: { select: { id: true, name: true } },
+        members: {
+          include: { user: { select: { id: true, email: true, name: true } } },
+          orderBy: { addedAt: 'asc' },
+        },
+      },
+    });
+    if (!project) throw new NotFoundException('Project not found');
+
+    const { wrappedDataKey: _wdk, ...safe } = project;
+    return { ...safe, yourRole: member.role };
+  }
+
+  /** Add a member. Only project ADMINs may do this, and the target must be in the org. */
+  async addMember(
+    projectId: string,
+    actorId: string,
+    actorRole: ProjectRole,
+    dto: AddProjectMemberDto,
+    ip?: string,
+  ) {
+    if (actorRole !== 'ADMIN') {
+      throw new ForbiddenException('Only project admins can manage members');
+    }
+
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { orgId: true },
+    });
+    if (!project) throw new NotFoundException('Project not found');
+
+    // Target must already be an org member — no cross-org sharing.
+    const inOrg = await this.prisma.orgMember.findUnique({
+      where: { orgId_userId: { orgId: project.orgId, userId: dto.userId } },
+    });
+    if (!inOrg) {
+      throw new BadRequestException('User must be a member of the organization first');
+    }
+
+    const existing = await this.prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: dto.userId } },
+    });
+    if (existing) throw new ConflictException('User is already a member of this project');
+
+    const member = await this.prisma.projectMember.create({
+      data: { projectId, userId: dto.userId, role: dto.role },
+      include: { user: { select: { id: true, email: true, name: true } } },
+    });
+
+    await this.audit.record({
+      action: 'PROJECT_MEMBER_ADDED',
+      userId: actorId,
+      projectId,
+      resource: `project/${projectId}/member/${dto.userId}`,
+      ip,
+      meta: { role: dto.role },
+    });
+
+    return member;
+  }
+
+  async updateMemberRole(
+    projectId: string,
+    actorId: string,
+    actorRole: ProjectRole,
+    targetUserId: string,
+    role: ProjectRole,
+    ip?: string,
+  ) {
+    if (actorRole !== 'ADMIN') {
+      throw new ForbiddenException('Only project admins can manage members');
+    }
+    const target = await this.prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: targetUserId } },
+    });
+    if (!target) throw new NotFoundException('Member not found');
+
+    const updated = await this.prisma.projectMember.update({
+      where: { id: target.id },
+      data: { role },
+      include: { user: { select: { id: true, email: true, name: true } } },
+    });
+
+    await this.audit.record({
+      action: 'PROJECT_MEMBER_ROLE_CHANGED',
+      userId: actorId,
+      projectId,
+      resource: `project/${projectId}/member/${targetUserId}`,
+      ip,
+      meta: { newRole: role },
+    });
+
+    return updated;
+  }
+
+  async removeMember(
+    projectId: string,
+    actorId: string,
+    actorRole: ProjectRole,
+    targetUserId: string,
+    ip?: string,
+  ) {
+    if (actorId !== targetUserId && actorRole !== 'ADMIN') {
+      throw new ForbiddenException('Only project admins can remove other members');
+    }
+
+    const target = await this.prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: targetUserId } },
+    });
+    if (!target) throw new NotFoundException('Member not found');
+
+    // Safety: never let a project end up with zero admins.
+    if (target.role === 'ADMIN') {
+      const admins = await this.prisma.projectMember.count({
+        where: { projectId, role: 'ADMIN' },
+      });
+      if (admins <= 1) {
+        throw new BadRequestException('Cannot remove the last admin of the project');
+      }
+    }
+
+    await this.prisma.projectMember.delete({ where: { id: target.id } });
+
+    await this.audit.record({
+      action: 'PROJECT_MEMBER_REMOVED',
+      userId: actorId,
+      projectId,
+      resource: `project/${projectId}/member/${targetUserId}`,
+      ip,
+    });
+  }
+}

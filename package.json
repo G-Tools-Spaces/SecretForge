@@ -1,0 +1,28 @@
+{
+  "name": "secretforge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SecretForge — team secrets vault. Centralized env var management with CLI/SDK injection, encrypted at rest.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/api",
+    "build": "npm run db:generate && npm run build -w apps/api",
+    "start": "npm run start -w apps/api",
+    "test": "npm run test -w apps/api",
+    "test:e2e": "npm run test:e2e -w apps/api",
+    "db:generate": "prisma generate --schema apps/api/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema apps/api/prisma/schema.prisma",
+    "db:deploy": "prisma migrate deploy --schema apps/api/prisma/schema.prisma",
+    "db:studio": "prisma studio --schema apps/api/prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2"
+  }
+}

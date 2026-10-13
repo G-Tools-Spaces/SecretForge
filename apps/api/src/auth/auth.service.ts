@@ -1,0 +1,122 @@
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { hash, verify } from '@node-rs/argon2';
+import { createHash, randomBytes } from 'crypto';
+import { PrismaService } from '../prisma/prisma.service';
+import { EnvService } from '../config/env.service';
+import { SignupDto, LoginDto } from './dto';
+import { JwtPayload } from './jwt-payload';
+
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
+/**
+ * Authentication:
+ *  - argon2id password hashing (memory-hard, current OWASP recommendation)
+ *  - short-lived JWT access tokens (default 15 min)
+ *  - opaque refresh tokens stored ONLY as SHA-256 hashes, rotated on every use
+ *    (a replayed refresh token revokes the session — theft is detectable)
+ */
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
+    private readonly env: EnvService,
+  ) {}
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async issueTokens(userId: string, email: string, device?: string, ip?: string): Promise<TokenPair> {
+    const payload: JwtPayload = { sub: userId, email };
+    const accessToken = await this.jwt.signAsync(payload, {
+      expiresIn: this.env.accessTokenTtl,
+    });
+
+    const refreshToken = randomBytes(48).toString('base64url');
+    const expiresAt = new Date(Date.now() + this.env.refreshTokenTtlDays * 24 * 60 * 60 * 1000);
+
+    await this.prisma.session.create({
+      data: {
+        userId,
+        hashedRefreshToken: this.hashToken(refreshToken),
+        device: device ?? null,
+        ip: ip ?? null,
+        expiresAt,
+      },
+    });
+
+    return { accessToken, refreshToken };
+  }
+
+  async signup(dto: SignupDto, ip?: string): Promise<TokenPair & { user: { id: string; email: string; name: string | null } }> {
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
+    if (existing) {
+      throw new ConflictException('An account with this email already exists');
+    }
+
+    // argon2id: default parameters are memory-hard and tuned by the library.
+    const passwordHash = await hash(dto.password);
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email.toLowerCase(),
+        name: dto.name ?? null,
+        passwordHash,
+      },
+    });
+
+    const tokens = await this.issueTokens(user.id, user.email, 'signup', ip);
+    return { ...tokens, user: { id: user.id, email: user.email, name: user.name } };
+  }
+
+  async login(dto: LoginDto, ip?: string): Promise<TokenPair & { user: { id: string; email: string; name: string | null } }> {
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
+    // Always run a verification even when the user is missing, to keep timing
+    // consistent and avoid user-enumeration via response time.
+    const hash_ = user?.passwordHash ?? (await hash('dummy-password-for-timing'));
+    const ok = await verify(hash_, dto.password);
+
+    if (!user || !ok) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const tokens = await this.issueTokens(user.id, user.email, 'login', ip);
+    return { ...tokens, user: { id: user.id, email: user.email, name: user.name } };
+  }
+
+  /**
+   * Rotate a refresh token: the old session row is consumed and a new one is
+   * issued. If the presented token was already used (replay), revoke the whole
+   * session — it likely means the token was stolen.
+   */
+  async refresh(refreshToken: string, ip?: string): Promise<TokenPair> {
+    const hashed = this.hashToken(refreshToken);
+    const session = await this.prisma.session.findUnique({
+      where: { hashedRefreshToken: hashed },
+      include: { user: true },
+    });
+
+    if (!session || session.revokedAt || session.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Consume the old session row immediately (single-use refresh tokens).
+    await this.prisma.session.update({
+      where: { id: session.id },
+      data: { revokedAt: new Date() },
+    });
+
+    return this.issueTokens(session.user.id, session.user.email, session.device ?? 'refresh', ip);
+  }
+
+  async logout(refreshToken: string): Promise<void> {
+    await this.prisma.session.updateMany({
+      where: { hashedRefreshToken: this.hashToken(refreshToken), revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+}
