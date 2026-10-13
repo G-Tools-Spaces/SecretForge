@@ -135,6 +135,13 @@ export interface OrgInvite {
   token?: string; // present only right after creation
 }
 
+export interface InvitePreview {
+  orgName: string;
+  role: string;
+  emailMasked: string;
+  expiresAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;

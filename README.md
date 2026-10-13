@@ -61,6 +61,8 @@ POST /orgs/:orgId/invite            # ADMIN+; returns single-use token (7 days)
 POST /orgs/:orgId/invites/accept    # must be logged in as invited email
 GET  /orgs/:orgId/invites           # ADMIN+
 DEL  /orgs/:orgId/invites/:id       # ADMIN+
+GET  /invites/:token                # public preview (org name, role, masked email)
+POST /invites/accept                # token-only accept; backs the web /invite/<token> page
 POST /orgs/:orgId/members/:userId/role   # OWNER rules enforced
 DEL  /orgs/:orgId/members/:userId        # last-owner protected
 

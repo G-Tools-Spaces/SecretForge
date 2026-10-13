@@ -15,6 +15,11 @@ const ORG_ROLE_BADGE: Record<string, string> = {
   MEMBER: 'badge',
 };
 
+/** Build the shareable accept URL for an invite token. */
+function inviteLink(token: string) {
+  return `${window.location.origin}/invite/${token}`;
+}
+
 /** Organization management: rename, members & roles, email invites. */
 export default function OrgPage() {
   const { orgId } = useParams<{ orgId: string }>();
@@ -125,6 +130,12 @@ export default function OrgPage() {
     } finally {
       setInviting(false);
     }
+  };
+
+  const copyInviteLink = async (inv: OrgInvite) => {
+    if (!inv.token) return;
+    await navigator.clipboard.writeText(inviteLink(inv.token));
+    toast.show('Invite link copied');
   };
 
   const revokeInvite = async (inv: OrgInvite) => {
@@ -317,6 +328,12 @@ export default function OrgPage() {
                       </span>
                     </span>
                     <span className={ORG_ROLE_BADGE[inv.role] ?? 'badge'}>{inv.role}</span>
+                    {inv.token && (
+                      <button className="btn btn-sm" onClick={() => copyInviteLink(inv)}>
+                        <Icon name="copy" size={13} strokeWidth={2.2} />
+                        Copy link
+                      </button>
+                    )}
                     <button className="btn btn-danger btn-sm" onClick={() => revokeInvite(inv)}>
                       Revoke
                     </button>
@@ -361,7 +378,9 @@ export default function OrgPage() {
               onChange={(e) => setInviteEmail(e.target.value)}
               autoFocus
             />
-            <p className="field-help">They must sign up with this email, then accept the invite token.</p>
+            <p className="field-help">
+              You'll get a one-time invite link to share — it only works for this email address.
+            </p>
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label className="field-label" htmlFor="invite-role">
@@ -380,23 +399,17 @@ export default function OrgPage() {
         </Modal>
       )}
 
-      {/* Show-once invite token */}
-      {createdInvite && (
+      {/* Show-once invite link */}
+      {createdInvite?.token && (
         <Modal
           title="Invite created"
           onClose={() => setCreatedInvite(null)}
-          width={520}
+          width={560}
           footer={
             <>
-              <button
-                className="btn"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(createdInvite.token ?? '');
-                  toast.show('Invite token copied');
-                }}
-              >
+              <button className="btn" onClick={() => copyInviteLink(createdInvite)}>
                 <Icon name="copy" size={14} strokeWidth={2.2} />
-                Copy token
+                Copy link
               </button>
               <button className="btn btn-primary" onClick={() => setCreatedInvite(null)}>
                 Done
@@ -405,11 +418,11 @@ export default function OrgPage() {
           }
         >
           <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text-2)' }}>
-            Share this token with <strong>{createdInvite.email}</strong> — it's valid for 7 days. They
-            accept it after signing up (no email is sent in this self-hosted setup).
+            Share this link with <strong>{createdInvite.email}</strong> — it's valid for 7 days and
+            only works for that email address. No email is sent in this self-hosted setup.
           </p>
           <pre className="code-block mono" style={{ userSelect: 'all', wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
-            {createdInvite.token}
+            {inviteLink(createdInvite.token)}
           </pre>
         </Modal>
       )}

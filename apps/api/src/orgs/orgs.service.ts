@@ -10,6 +10,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateOrgDto, InviteMemberDto, UpdateMemberRoleDto, UpdateOrgDto } from './dto';
 
+/** "bob@example.com" → "b**@example.com" (for public invite previews). */
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  return `${local.slice(0, 1)}**@${domain}`;
+}
+
 /** slugify("Acme Dev Team!") → "acme-dev-team" */
 export function slugify(name: string): string {
   return name
@@ -178,9 +185,29 @@ export class OrgsService {
       meta: { email, role: dto.role ?? 'MEMBER' },
     });
 
-    // Phase 5: send the invite email via a mailer. For now the token is
-    // returned so the team can share it manually (self-hosted MVP).
+    // No mailer in this self-hosted setup: the token is returned once so the
+    // inviter can share the /invite/<token> link manually.
     return { id: invite.id, email, role: invite.role, expiresAt: invite.expiresAt, token: invite.token };
+  }
+
+  /**
+   * Public preview of an invite link. The token acts as a bearer secret, so we
+   * only leak the org name, role and a masked email — never the full address.
+   */
+  async getInviteByToken(token: string) {
+    const invite = await this.prisma.orgInvite.findUnique({
+      where: { token },
+      include: { org: { select: { name: true } } },
+    });
+    if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) {
+      throw new NotFoundException('This invite link is invalid or has expired');
+    }
+    return {
+      orgName: invite.org.name,
+      role: invite.role,
+      emailMasked: maskEmail(invite.email),
+      expiresAt: invite.expiresAt,
+    };
   }
 
   /** Accept an invite with the token (must be logged in as the invited email). */

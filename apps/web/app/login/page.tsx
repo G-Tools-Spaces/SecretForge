@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/api';
 import { useUser } from '@/lib/useUser';
@@ -15,6 +15,14 @@ export default function LoginPage() {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Post-auth redirect target, e.g. /login?next=/invite/<token>.
+  const [next, setNext] = useState<string | null>(null);
+
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get('next');
+    // Only allow same-origin absolute paths (block "//evil.com" etc.).
+    if (param && param.startsWith('/') && !param.startsWith('//')) setNext(param);
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +38,7 @@ export default function LoginPage() {
       // user=null from the initial (unauthenticated) /auth/me check, and
       // /projects would bounce us straight back to /login otherwise.
       await refresh();
-      router.push('/projects');
+      router.push(next ?? '/projects');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setBusy(false);
