@@ -7,6 +7,7 @@ import { CryptoModule } from './crypto/crypto.module';
 import { AuthModule } from './auth/auth.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { ProjectsModule } from './projects/projects.module';
+import { SecretsModule } from './secrets/secrets.module';
 import { AuditModule } from './audit/audit.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { AuditModule } from './audit/audit.module';
     AuthModule,
     OrgsModule,
     ProjectsModule,
+    SecretsModule,
     AuditModule,
   ],
   providers: [

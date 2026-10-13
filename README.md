@@ -11,12 +11,12 @@ SDK     ─┘        └──► Master key (env var) wraps per-project data k
 
 ## Status
 
-**Phase 1 complete** — foundation: auth, orgs, projects, roles, audit log, envelope encryption.
+**Phases 1-2 complete** — foundation + secrets core: auth, orgs, projects, roles, audit log, envelope encryption, secrets CRUD with versioning/rollback, bulk `.env` import/export.
 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | DB schema, auth, org/project CRUD | ✅ done |
-| 2 | Secrets CRUD with encryption, versioning | next |
+| 2 | Secrets CRUD with encryption, versioning | ✅ done |
 | 3 | CLI (`forge login/init/set/run/pull`) | planned |
 | 4 | Roles, sharing, invites, audit log UI | planned |
 | 5 | Web UI (Next.js, dark theme per wireframe) | planned |
@@ -43,8 +43,8 @@ npm run dev          # API on http://localhost:4000
 ### Tests
 
 ```bash
-npm test             # unit tests (crypto: 20 tests)
-npm run test:e2e     # e2e: auth + role enforcement (26 tests, needs Postgres)
+npm test             # unit tests: crypto (20) + .env parser (18)
+npm run test:e2e     # e2e: auth, roles, secrets lifecycle (53 tests, needs Postgres)
 ```
 
 ## API (Phase 1)
@@ -71,6 +71,17 @@ POST /projects/:projectId/members/:userId/role
 DEL  /projects/:projectId/members/:userId    # self-removal allowed; last-admin protected
 
 GET  /audit?project=<id>&action=<name>&limit=<n>
+
+# Secrets (Phase 2) — role matrix: READ → list/reveal/export/versions,
+#                       WRITE → + upsert/import, ADMIN → + delete/rollback
+GET    /projects/:projectId/envs/:env/secrets                    # masked list (no values)
+PUT    /projects/:projectId/envs/:env/secrets/:key              # upsert (new version each write)
+GET    /projects/:projectId/envs/:env/secrets/:key               # reveal (audited, rate-limited)
+DELETE /projects/:projectId/envs/:env/secrets/:key              # ADMIN
+POST   /projects/:projectId/envs/:env/secrets/import            # bulk paste .env content
+GET    /projects/:projectId/envs/:env/secrets/export            # all values (audited, rate-limited)
+GET    /projects/:projectId/envs/:env/secrets/:key/versions     # history (metadata only)
+POST   /projects/:projectId/envs/:env/secrets/:key/versions/:v/rollback  # ADMIN; rollback = new version
 ```
 
 ## Security model
@@ -78,8 +89,9 @@ GET  /audit?project=<id>&action=<name>&limit=<n>
 - **Envelope encryption**: master key (env var only) wraps a per-project data key; the data key encrypts secret values (AES-256-GCM, unique IV per write). Losing the master key loses all secrets — back it up separately.
 - **Auth**: argon2id password hashing, 15-min JWT access tokens, single-use hashed refresh tokens (replay revokes the session).
 - **Roles**: checked on every request. Org: OWNER > ADMIN > MEMBER. Project: ADMIN > WRITE > READ.
-- **Audit**: every mutation logged; secret values never appear in logs or audit meta (sanitized + enforced by tests).
-- **Rate limits**: global 300 req/min; login 10/min.
+- **Audit**: every mutation logged; secret values never appear in logs or audit meta (sanitized + enforced by tests). Reveals and exports are audited individually.
+- **Rate limits**: global 300 req/min; login 10/min; reveal 60/min; export 10/min.
+- **Versioning**: every write creates an immutable version row; rollback copies an old version forward (history is append-only).
 
 ## Repo layout
 
