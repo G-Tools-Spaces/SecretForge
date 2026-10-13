@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/api';
+import { useUser } from '@/lib/useUser';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refresh } = useUser();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,6 +25,10 @@ export default function LoginPage() {
       } else {
         await auth.signup(email, password, name || undefined);
       }
+      // Update the UserProvider context BEFORE navigating — it cached
+      // user=null from the initial (unauthenticated) /auth/me check, and
+      // /projects would bounce us straight back to /login otherwise.
+      await refresh();
       router.push('/projects');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
