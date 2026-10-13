@@ -151,8 +151,8 @@ nvm install 20 && nvm use 20    # any OS via nvm`,
                 },
                 {
                   title: 'Install the forge CLI',
-                  body: 'Once published: npm install -g @secretforge/cli. From the repo today:',
-                  code: `npm install -g @secretforge/cli   # once published
+                  body: 'From npm (recommended). Or from the repo, for contributors:',
+                  code: `npm install -g @secretforge/cli
 
 # or from the repo:
 cd packages/cli && npm run build

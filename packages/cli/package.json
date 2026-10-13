@@ -1,18 +1,37 @@
 {
   "name": "@secretforge/cli",
   "version": "0.1.0",
-  "private": true,
   "description": "forge — the SecretForge CLI. Fetch and inject secrets into your apps; no more .env files.",
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "keywords": [
+    "secrets",
+    "secrets-manager",
+    "env-vars",
+    "dotenv",
+    "vault",
+    "secretforge",
+    "cli"
+  ],
+  "homepage": "https://github.com/G-Tools-Spaces/SecretForge#readme",
+  "bugs": "https://github.com/G-Tools-Spaces/SecretForge/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/G-Tools-Spaces/SecretForge.git",
+    "directory": "packages/cli"
+  },
   "engines": {
     "node": ">=20"
   },
+  "files": [
+    "dist"
+  ],
   "bin": {
     "forge": "dist/index.js",
     "secretforge": "dist/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build",
     "test": "jest --silent"
   },
   "dependencies": {

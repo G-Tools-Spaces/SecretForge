@@ -280,13 +280,13 @@ small npm package (`forge` command); it has no other system dependencies.
 
 #### Step 2 — Install the forge CLI
 
-Once published to npm (recommended):
+From npm (recommended):
 
 ```bash
 npm install -g @secretforge/cli
 ```
 
-Until then, install from the repo:
+Or install from the repo (contributors / pre-release):
 
 ```bash
 git clone <your-secretforge-repo-url> && cd SecretForge
