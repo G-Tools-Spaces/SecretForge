@@ -18,11 +18,11 @@
   --text-3: #a1a1aa;
   --text-4: #8b8b94;
 
-  --accent: #8b5cf6;
-  --accent-strong: #7c3aed;
-  --accent-soft: #a78bfa;
-  --accent-softer: #c4b5fd;
-  --accent-dim: #4c3a85;
+  --accent: #22d3ee;
+  --accent-strong: #06b6d4;
+  --accent-soft: #67e8f9;
+  --accent-softer: #a5f3fc;
+  --accent-dim: #155e75;
 
   --warn: #f59e0b;
   --warn-soft: #fcd34d;
@@ -150,11 +150,11 @@ textarea {
 .btn-primary {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: #fff;
+  color: #052e3a;
 }
 .btn-primary:hover {
   background: var(--accent);
-  color: #fff;
+  color: #052e3a;
 }
 .btn-danger {
   background: transparent;
