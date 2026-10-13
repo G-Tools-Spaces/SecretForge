@@ -20,7 +20,7 @@ SDK     ─┘        └──► Master key (env var) wraps per-project data k
 | 3 | CLI (`forge login/init/set/run/pull`) | ✅ done |
 | 4 | Roles, sharing, invites, audit hardening | ✅ done |
 | 5 | Web UI (Next.js, dark theme per wireframe) | ✅ done |
-| 6 | Service tokens, Node SDK, CI integration | ✅ done (Python SDK later) |
+| 6 | Service tokens, Node + Python SDKs, CI integration | ✅ done |
 | 7 | Hardening: 2FA, rate limits, backups, docs | planned |
 
 ## Quick start
@@ -170,6 +170,10 @@ SECRETFORGE_TOKEN=sf_... forge run --env prod -- node server.js
 import { config } from '@secretforge/sdk';
 await config();   // uses SECRETFORGE_TOKEN + .secretforge.json
 
+# Python SDK — same, into os.environ:
+import secretforge
+secretforge.config()
+
 # GitHub Actions:
 - env:
     SECRETFORGE_TOKEN: ${{ secrets.SECRETFORGE_TOKEN }}
@@ -186,7 +190,7 @@ apps/api          NestJS REST API + Prisma schema + tests
 apps/web          Next.js web UI (dark theme per wireframe)
 packages/cli      forge CLI (login/init/set/list/run/pull/import)
 packages/sdk-node @secretforge/sdk — load()/config() for Node apps
-packages/sdk-python (later)
+packages/sdk-python secretforge — load()/config() for Python apps (stdlib only)
 deploy/Caddyfile  HTTPS reverse proxy config
 ```
 

@@ -12,7 +12,7 @@ const SECTIONS = [
   { id: 'getting-started', label: 'Getting started' },
   { id: 'cli', label: 'CLI' },
   { id: 'tokens', label: 'Service tokens' },
-  { id: 'sdk', label: 'Node SDK' },
+  { id: 'sdk', label: 'SDKs' },
   { id: 'ci', label: 'CI integration' },
   { id: 'roles', label: 'Roles & permissions' },
   { id: 'security', label: 'Security model' },
@@ -166,9 +166,10 @@ forge import .env --env dev        # migrate an existing .env file`}</Code>
             </Note>
           </DocSection>
 
-          {/* Node SDK */}
-          <DocSection id="sdk" title="Node SDK">
-            <Code>{`npm i @secretforge/sdk`}</Code>
+          {/* SDKs */}
+          <DocSection id="sdk" title="SDKs (Node & Python)">
+            <Code>{`npm i @secretforge/sdk        # Node
+pip install secretforge       # Python (stdlib only, 3.9+)`}</Code>
             <Code>{`import { config, load } from '@secretforge/sdk';
 
 // Fetch secrets at boot and merge into process.env.
@@ -177,6 +178,10 @@ await config();   // uses SECRETFORGE_TOKEN + .secretforge.json
 
 // Or get a plain object without touching process.env:
 const values = await load({ env: 'prod' });`}</Code>
+            <Code>{`import secretforge
+
+secretforge.config()   # merges into os.environ; real env vars win
+values = secretforge.load(env="prod")  # plain dict`}</Code>
             <Note>
               Options: <span className="mono">projectId</span>, <span className="mono">env</span>,{' '}
               <span className="mono">token</span>, <span className="mono">url</span> — all optional when the

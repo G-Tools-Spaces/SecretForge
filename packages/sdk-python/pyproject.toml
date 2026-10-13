@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "secretforge"
+version = "0.1.0"
+description = "SecretForge Python SDK — load vault secrets into os.environ at boot; no more .env files."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "UNLICENSED" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
