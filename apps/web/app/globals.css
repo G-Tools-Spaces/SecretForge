@@ -222,6 +222,12 @@ textarea {
   text-transform: uppercase;
   white-space: nowrap;
 }
+.badge-sm {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+}
 .badge-ok {
   color: var(--ok);
   border-color: var(--ok-border);

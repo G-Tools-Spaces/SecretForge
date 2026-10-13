@@ -65,7 +65,7 @@ export function Sidebar({ project }: { project: Project }) {
         <span className={s.projectMeta}>
           <span className={s.projectName}>{project.name}</span>
           <span className={s.projectSub}>
-            {project.yourRole && <span className="badge badge-accent">{project.yourRole}</span>}
+            {project.yourRole && <span className="badge badge-sm badge-accent">{project.yourRole}</span>}
             <span className={s.projectId}>{project.org.name}</span>
           </span>
         </span>
