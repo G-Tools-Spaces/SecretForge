@@ -104,6 +104,30 @@ export default function ProjectsPage() {
         {error && <ErrorState message={error} onRetry={load} />}
         {busy && !error && <Loading />}
 
+        {!busy && !error && orgs.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+            {orgs.map((o) => (
+              <a
+                key={o.id}
+                href={`/orgs/${o.id}`}
+                className="badge"
+                style={{
+                  textDecoration: 'none',
+                  fontSize: 11,
+                  padding: '5px 10px',
+                  color: 'var(--text-2)',
+                  textTransform: 'none',
+                  letterSpacing: 0,
+                }}
+              >
+                <Icon name="building" size={12} strokeWidth={2.2} />
+                {o.name}
+                <span style={{ color: 'var(--text-4)' }}>{o._count?.projects ?? 0}</span>
+              </a>
+            ))}
+          </div>
+        )}
+
         {!busy && !error && projects.length === 0 && (
           <div className="panel">
             <div className="empty" style={{ padding: '56px 18px' }}>

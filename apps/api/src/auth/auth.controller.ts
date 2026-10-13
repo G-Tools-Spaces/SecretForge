@@ -1,7 +1,7 @@
-import { Body, Controller, Get, HttpCode, Ip, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Patch, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { SignupDto, LoginDto, RefreshDto, LogoutDto } from './dto';
+import { SignupDto, LoginDto, RefreshDto, LogoutDto, UpdateProfileDto, ChangePasswordDto } from './dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import { AuthedUser } from './jwt-payload';
@@ -47,5 +47,24 @@ export class AuthController {
       where: { id: user.id },
       select: { id: true, email: true, name: true, createdAt: true },
     });
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  updateProfile(@CurrentUser() user: AuthedUser, @Body() dto: UpdateProfileDto, @Ip() ip: string) {
+    return this.auth.updateProfile(user.id, dto.name, ip);
+  }
+
+  @Post('change-password')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  changePassword(
+    @CurrentUser() user: AuthedUser,
+    @Body() dto: ChangePasswordDto,
+    @Body('refreshToken') refreshToken: string | undefined,
+    @Ip() ip: string,
+  ) {
+    return this.auth.changePassword(user.id, dto, refreshToken, ip);
   }
 }

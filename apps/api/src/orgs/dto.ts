@@ -7,6 +7,13 @@ export class CreateOrgDto {
   name!: string;
 }
 
+export class UpdateOrgDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  name!: string;
+}
+
 export class InviteMemberDto {
   @IsString()
   email!: string;

@@ -113,6 +113,28 @@ export interface Org {
   _count?: { projects: number };
 }
 
+export interface OrgMemberRow {
+  userId: string;
+  role: string;
+  user: { id: string; email: string; name: string | null };
+}
+
+export interface OrgDetail {
+  id: string;
+  name: string;
+  slug: string;
+  members: OrgMemberRow[];
+  projects: Array<{ id: string; name: string; slug: string; createdAt: string }>;
+}
+
+export interface OrgInvite {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+  token?: string; // present only right after creation
+}
+
 export interface Project {
   id: string;
   name: string;

@@ -8,7 +8,7 @@ import {
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { CreateOrgDto, InviteMemberDto, UpdateMemberRoleDto } from './dto';
+import { CreateOrgDto, InviteMemberDto, UpdateMemberRoleDto, UpdateOrgDto } from './dto';
 
 /** slugify("Acme Dev Team!") → "acme-dev-team" */
 export function slugify(name: string): string {
@@ -58,6 +58,29 @@ export class OrgsService {
     });
 
     return org;
+  }
+
+  /** Rename an org (OWNER/ADMIN). */
+  async update(orgId: string, userId: string, dto: UpdateOrgDto, ip?: string) {
+    await this.requireAdmin(orgId, userId);
+    const org = await this.prisma.organization.findUnique({ where: { id: orgId } });
+    if (!org) throw new NotFoundException('Organization not found');
+
+    const updated = await this.prisma.organization.update({
+      where: { id: orgId },
+      data: { name: dto.name },
+    });
+
+    await this.audit.record({
+      action: 'ORG_UPDATED',
+      userId,
+      orgId,
+      resource: `org/${orgId}`,
+      ip,
+      meta: { field: 'name', from: org.name, to: dto.name },
+    });
+
+    return updated;
   }
 
   /** Orgs the user belongs to. */

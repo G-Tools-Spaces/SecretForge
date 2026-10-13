@@ -1,9 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, Ip, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Ip, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthedUser } from '../auth/jwt-payload';
 import { OrgsService } from './orgs.service';
-import { CreateOrgDto, InviteMemberDto, UpdateMemberRoleDto, AcceptInviteDto } from './dto';
+import { CreateOrgDto, InviteMemberDto, UpdateMemberRoleDto, AcceptInviteDto, UpdateOrgDto } from './dto';
 
 @Controller('orgs')
 @UseGuards(JwtAuthGuard)
@@ -23,6 +23,11 @@ export class OrgsController {
   @Get(':orgId')
   get(@CurrentUser() user: AuthedUser, @Param('orgId') orgId: string) {
     return this.orgs.get(orgId, user.id);
+  }
+
+  @Patch(':orgId')
+  update(@CurrentUser() user: AuthedUser, @Param('orgId') orgId: string, @Body() dto: UpdateOrgDto, @Ip() ip: string) {
+    return this.orgs.update(orgId, user.id, dto, ip);
   }
 
   @Post(':orgId/invite')

@@ -91,6 +91,15 @@ export function Topbar({ project }: { project?: Project }) {
                 </div>
               </div>
               <div className={s.menuSep} />
+              <Link
+                href="/account"
+                role="menuitem"
+                className={s.menuItem}
+                style={{ textDecoration: 'none', display: 'block', width: '100%', textAlign: 'left' }}
+                onClick={close}
+              >
+                Account settings
+              </Link>
               <button
                 type="button"
                 role="menuitem"

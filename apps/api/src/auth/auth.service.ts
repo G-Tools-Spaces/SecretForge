@@ -5,7 +5,7 @@ import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EnvService } from '../config/env.service';
 import { AuditService } from '../audit/audit.service';
-import { SignupDto, LoginDto } from './dto';
+import { SignupDto, LoginDto, ChangePasswordDto } from './dto';
 import { JwtPayload } from './jwt-payload';
 
 export interface TokenPair {
@@ -140,6 +140,69 @@ export class AuthService {
     });
 
     return this.issueTokens(session.user.id, session.user.email, session.device ?? 'refresh', ip);
+  }
+
+  /** Update the display name. */
+  async updateProfile(userId: string, name: string, ip?: string) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { name },
+      select: { id: true, email: true, name: true, createdAt: true },
+    });
+
+    await this.audit.record({
+      action: 'USER_UPDATED',
+      userId,
+      resource: `user/${userId}`,
+      ip,
+      meta: { field: 'name' },
+    });
+
+    return user;
+  }
+
+  /**
+   * Change password: verifies the current one, then revokes every OTHER
+   * session so a stolen session can't survive the rotation. The caller's
+   * current session stays valid (its access token is short-lived anyway).
+   */
+  async changePassword(userId: string, dto: ChangePasswordDto, currentRefreshToken?: string, ip?: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    const ok = await verify(user.passwordHash, dto.currentPassword);
+    if (!ok) {
+      await this.audit.record({
+        action: 'USER_LOGIN_FAILED',
+        userId,
+        resource: `user/${userId}/password`,
+        ip,
+        meta: { reason: 'wrong_current_password' },
+      });
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const passwordHash = await hash(dto.newPassword);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+    // Revoke all sessions except the one making this request.
+    await this.prisma.session.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        ...(currentRefreshToken
+          ? { hashedRefreshToken: { not: this.hashToken(currentRefreshToken) } }
+          : {}),
+      },
+      data: { revokedAt: new Date() },
+    });
+
+    await this.audit.record({
+      action: 'PASSWORD_CHANGED',
+      userId,
+      resource: `user/${userId}`,
+      ip,
+    });
   }
 
   async logout(refreshToken: string, userId?: string, ip?: string): Promise<void> {
