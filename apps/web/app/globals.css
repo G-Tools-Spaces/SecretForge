@@ -599,3 +599,13 @@ textarea {
     opacity: 1;
   }
 }
+
+/* ---------- Pingie chat widget overrides ----------
+   The widget renders in an open shadow root on #pingie-widget and themes
+   itself via CSS custom properties, which inherit from the host element.
+   Force dark text (bot bubbles, composer input, titles) while keeping the
+   dark panel chrome. */
+#pingie-widget {
+  --fg: #000000;
+  --muted: #3f3f46;
+}
