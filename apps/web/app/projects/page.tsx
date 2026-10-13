@@ -168,7 +168,7 @@ export default function ProjectsPage() {
                       width: 38,
                       height: 38,
                       flex: 'none',
-                      color: '#fff',
+                      color: '#0b2f2a',
                       background: 'var(--accent-strong)',
                       display: 'flex',
                       alignItems: 'center',

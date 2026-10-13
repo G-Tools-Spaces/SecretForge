@@ -1,28 +1,28 @@
 /* Design tokens — Pingie design reference, adapted for SecretForge. */
 :root {
-  --bg: #060a1f;
-  --bg-sidebar: #080c26;
-  --surface: #0a0f2b;
-  --surface-2: #0c1132;
-  --surface-hover: #121737;
-  --chip: #20264a;
+  --bg: #202023;
+  --bg-sidebar: #222225;
+  --surface: #26262a;
+  --surface-2: #2b2b2e;
+  --surface-hover: #323237;
+  --chip: #3a3a40;
 
-  --border: #1b2142;
-  --border-strong: #29305a;
-  --border-row: #141a38;
-  --grid: #181e3d;
-  --divider: #39406e;
+  --border: #343439;
+  --border-strong: #44444b;
+  --border-row: #2a2a2e;
+  --grid: #2e2e33;
+  --divider: #505058;
 
-  --text: #fafaff;
-  --text-2: #d3d7ec;
-  --text-3: #9ba1c3;
-  --text-4: #8489a8;
+  --text: #f4f4f5;
+  --text-2: #d6d6da;
+  --text-3: #a3a3ab;
+  --text-4: #8a8a91;
 
-  --accent: #2e4bff;
-  --accent-strong: #1f36e0;
-  --accent-soft: #8ea0fc;
-  --accent-softer: #c9d6fe;
-  --accent-dim: #2c3a96;
+  --accent: #45dcc9;
+  --accent-strong: #38c9b4;
+  --accent-soft: #7fe8da;
+  --accent-softer: #b8f4ec;
+  --accent-dim: #1e7a78;
 
   --warn: #f59e0b;
   --warn-soft: #fcd34d;
@@ -150,11 +150,11 @@ textarea {
 .btn-primary {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: #fff;
+  color: #0b2f2a;
 }
 .btn-primary:hover {
   background: var(--accent);
-  color: #fff;
+  color: #0b2f2a;
 }
 .btn-danger {
   background: transparent;

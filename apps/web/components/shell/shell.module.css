@@ -78,7 +78,7 @@
   width: 22px;
   height: 22px;
   background: var(--accent-strong);
-  color: #fff;
+  color: #0b2f2a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -247,7 +247,7 @@
   width: 34px;
   height: 34px;
   flex: none;
-  color: #fff;
+  color: #0b2f2a;
   background: var(--accent-strong);
   display: flex;
   align-items: center;
