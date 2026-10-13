@@ -74,7 +74,7 @@ export function Topbar({ project }: { project?: Project }) {
               <span aria-hidden="true" className={s.orgMark}>
                 {contextOrg.name.slice(0, 1).toUpperCase()}
               </span>
-              {contextOrg.name}
+              {`${contextOrg.name}'s Org`}
             </Link>
           </>
         )}
