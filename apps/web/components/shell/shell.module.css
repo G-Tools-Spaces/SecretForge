@@ -1,0 +1,358 @@
+/* ---------- App frame ---------- */
+.app {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.body {
+  display: flex;
+  flex-wrap: wrap;
+}
+.sidebarCol {
+  flex: 1 1 232px;
+  max-width: 100%;
+  border-right: 1px solid var(--border);
+  background: var(--bg-sidebar);
+}
+.main {
+  flex: 999 1 560px;
+  min-width: 0;
+  padding: 32px 40px 56px;
+}
+.mainWide {
+  padding: 32px 40px 56px;
+}
+
+@media (min-width: 840px) {
+  .sidebarCol {
+    max-width: 240px;
+    position: sticky;
+    top: var(--topbar-h);
+    height: calc(100vh - var(--topbar-h));
+    overflow-y: auto;
+  }
+}
+@media (max-width: 640px) {
+  .main,
+  .mainWide {
+    padding: 24px 16px 40px;
+  }
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  width: 100%;
+  min-height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 0;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.brand:hover {
+  color: var(--text);
+}
+.brandMark {
+  width: 22px;
+  height: 22px;
+  background: var(--accent-strong);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+.slash {
+  color: var(--divider);
+  font-size: 16px;
+  padding: 0 2px;
+}
+.switcherWrap {
+  position: relative;
+}
+.switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.switcher:hover {
+  background: var(--surface-2);
+}
+.switcherBoxed {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+.orgMark {
+  width: 18px;
+  height: 18px;
+  background: var(--chip);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+.right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.navLink {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  text-decoration: none;
+  padding: 6px 10px;
+}
+.navLink:hover {
+  color: var(--text);
+}
+.avatar {
+  width: 30px;
+  height: 30px;
+  background: var(--chip);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .navLink {
+    display: none;
+  }
+}
+
+/* ---------- Dropdown menu ---------- */
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  min-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  padding: 4px 0;
+}
+.menuRight {
+  left: auto;
+  right: 0;
+}
+.menuLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  padding: 8px 12px 4px;
+}
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.menuItem:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.menuItemActive {
+  color: var(--text);
+  font-weight: 600;
+}
+.menuSep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.menuMeta {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: 100%;
+  padding: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  color: var(--text);
+}
+.back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-decoration: none;
+}
+.back:hover {
+  color: var(--text);
+}
+.projectCard {
+  padding: 0 16px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.projectMark {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  color: #fff;
+  background: var(--accent-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+.projectMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.projectName {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.projectSub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.projectId {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-4);
+}
+.group {
+  display: flex;
+  flex-direction: column;
+}
+.groupLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  padding: 0 16px 6px;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-3);
+  text-decoration: none;
+}
+.item:hover {
+  color: var(--text);
+  background: #121215;
+}
+.item svg {
+  color: var(--text-4);
+}
+.itemActive,
+.itemActive:hover {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--surface-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.itemActive svg {
+  color: var(--accent-soft);
+}
+.itemLabel {
+  flex: 1;
+}
+
+/* Phones and small tablets: the sidebar collapses into a scrollable tab strip. */
+@media (max-width: 839px) {
+  .sidebarCol {
+    flex-basis: 100%;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar {
+    flex-direction: row;
+    gap: 0;
+    padding: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .back {
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+  }
+  .projectCard,
+  .groupLabel {
+    display: none;
+  }
+  .group {
+    flex-direction: row;
+  }
+  .item {
+    white-space: nowrap;
+    padding: 12px 14px;
+  }
+  .itemActive,
+  .itemActive:hover {
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+}

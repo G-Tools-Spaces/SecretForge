@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/api';
 import { useUser } from '@/lib/useUser';
+import { InlineError } from '@/components/ui';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,7 +33,6 @@ export default function LoginPage() {
       router.push('/projects');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
-    } finally {
       setBusy(false);
     }
   };
@@ -44,127 +44,129 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24,
+        padding: 16,
+        backgroundImage: 'radial-gradient(#17171b 1px, transparent 1px)',
+        backgroundSize: '18px 18px',
       }}
     >
-      <div style={{ width: 360 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28, justifyContent: 'center' }}>
-          <div
+      <div style={{ width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700 }}>
+          <span
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: 'var(--ac)',
+              width: 28,
+              height: 28,
+              background: 'var(--accent-strong)',
+              color: '#fff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#fff',
+              fontSize: 14,
             }}
           >
-            <i className="ti ti-lock" style={{ fontSize: 18 }} />
-          </div>
-          <span style={{ fontSize: 20, fontWeight: 600 }}>SecretForge</span>
+            S
+          </span>
+          SecretForge
         </div>
 
-        <div className="card" style={{ padding: 24 }}>
-          <div style={{ marginBottom: 18, textAlign: 'center' }}>
-            <p style={{ fontSize: 16, fontWeight: 500, margin: '0 0 4px' }}>
-              {mode === 'login' ? 'Welcome back' : 'Create your account'}
-            </p>
-            <p className="muted" style={{ margin: 0, fontSize: 12.5 }}>
+        <div className="panel">
+          <div className="panel-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>
+              {mode === 'login' ? 'Sign in' : 'Create your account'}
+            </h1>
+            <span className="muted" style={{ fontSize: 13 }}>
               {mode === 'login'
-                ? 'Sign in to your team secrets vault'
-                : 'Start managing your team secrets'}
-            </p>
+                ? 'Sign in to your team secrets vault.'
+                : 'Start managing your team secrets. Password must be at least 10 characters.'}
+            </span>
           </div>
-
-          <form onSubmit={submit}>
-            {mode === 'signup' && (
-              <div style={{ marginBottom: 12 }}>
-                <label className="muted" style={{ display: 'block', fontSize: 11.5, marginBottom: 5 }}>
-                  Name
+          <div className="panel-body">
+            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {mode === 'signup' && (
+                <div className="field">
+                  <label className="field-label" htmlFor="name">
+                    Name
+                  </label>
+                  <input
+                    id="name"
+                    className="input"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Asha Verma"
+                    autoComplete="name"
+                  />
+                </div>
+              )}
+              <div className="field">
+                <label className="field-label" htmlFor="email">
+                  Email
                 </label>
                 <input
+                  id="email"
                   className="input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Asha Verma"
-                  autoComplete="name"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@team.com"
+                  required
+                  autoComplete="email"
                 />
               </div>
-            )}
-            <div style={{ marginBottom: 12 }}>
-              <label className="muted" style={{ display: 'block', fontSize: 11.5, marginBottom: 5 }}>
-                Email
-              </label>
-              <input
-                className="input"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@team.com"
-                required
-                autoComplete="email"
-              />
-            </div>
-            <div style={{ marginBottom: 18 }}>
-              <label className="muted" style={{ display: 'block', fontSize: 11.5, marginBottom: 5 }}>
-                Password
-              </label>
-              <input
-                className="input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={mode === 'signup' ? 'At least 10 characters' : '••••••••'}
-                required
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              />
-            </div>
+              <div className="field">
+                <label className="field-label" htmlFor="password">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  className="input"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={mode === 'signup' ? 'At least 10 characters' : '••••••••'}
+                  required
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                />
+              </div>
 
-            {error && (
-              <p style={{ color: 'var(--danger)', fontSize: 12.5, margin: '0 0 12px' }}>{error}</p>
-            )}
+              <InlineError message={error} />
 
-            <button className="btn primary" style={{ width: '100%', justifyContent: 'center' }} disabled={busy}>
-              {busy ? <span className="spinner" /> : mode === 'login' ? 'Sign in' : 'Create account'}
-            </button>
-          </form>
-
-          <p className="muted" style={{ textAlign: 'center', margin: '16px 0 0', fontSize: 12 }}>
-            {mode === 'login' ? (
-              <>
-                No account?{' '}
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setMode('signup');
-                    setError(null);
-                  }}
-                  style={{ color: 'var(--al)' }}
-                >
-                  Sign up
-                </a>
-              </>
-            ) : (
-              <>
-                Have an account?{' '}
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setMode('login');
-                    setError(null);
-                  }}
-                  style={{ color: 'var(--al)' }}
-                >
-                  Sign in
-                </a>
-              </>
-            )}
-          </p>
+              <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>
+                {busy ? <span className="spinner" /> : mode === 'login' ? 'Sign in' : 'Create account'}
+              </button>
+            </form>
+          </div>
         </div>
+
+        <p className="subtle" style={{ margin: 0, fontSize: 12, textAlign: 'center' }}>
+          {mode === 'login' ? (
+            <>
+              No account?{' '}
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMode('signup');
+                  setError(null);
+                }}
+              >
+                Sign up
+              </a>
+            </>
+          ) : (
+            <>
+              Have an account?{' '}
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMode('login');
+                  setError(null);
+                }}
+              >
+                Sign in
+              </a>
+            </>
+          )}
+        </p>
       </div>
     </div>
   );

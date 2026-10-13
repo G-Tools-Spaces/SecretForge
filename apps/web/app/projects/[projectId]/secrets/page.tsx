@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api, Project, SecretRow } from '@/lib/api';
 import { useUser } from '@/lib/useUser';
-import { AppShell, ProjectSidebar } from '@/components/AppShell';
+import { ProjectShell } from '@/components/shell/AppShell';
+import { Icon } from '@/components/Icon';
+import { PageHeader, Loading, ErrorState, Modal } from '@/components/ui';
 import { useToast } from '@/components/Toast';
 
 export default function SecretsPage() {
@@ -17,14 +19,13 @@ export default function SecretsPage() {
   const [env, setEnv] = useState('dev');
   const [secrets, setSecrets] = useState<SecretRow[]>([]);
   const [busy, setBusy] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
   const [importContent, setImportContent] = useState('');
-  const [canWrite, setCanWrite] = useState(false);
-  const [canAdmin, setCanAdmin] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -40,13 +41,12 @@ export default function SecretsPage() {
       ]);
       setProject(p);
       setSecrets(s.secrets);
-      setCanWrite(p.yourRole === 'ADMIN' || p.yourRole === 'WRITE');
-      setCanAdmin(p.yourRole === 'ADMIN');
       if (!p.environments.some((e) => e.name === env)) {
         setEnv(p.environments[0]?.name ?? 'dev');
       }
+      setError(null);
     } catch (err) {
-      toast.show(err instanceof Error ? err.message : 'Failed to load', 'error');
+      setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
       setBusy(false);
     }
@@ -56,13 +56,13 @@ export default function SecretsPage() {
     if (user) load();
   }, [user, load]);
 
+  const canWrite = project?.yourRole === 'ADMIN' || project?.yourRole === 'WRITE';
+  const canAdmin = project?.yourRole === 'ADMIN';
+
   const reveal = async (key: string) => {
     try {
-      const res = await api<{ value: string }>(
-        `/projects/${projectId}/envs/${env}/secrets/${key}`,
-      );
+      const res = await api<{ value: string }>(`/projects/${projectId}/envs/${env}/secrets/${key}`);
       setRevealed((r) => ({ ...r, [key]: res.value }));
-      // Auto-hide after 30s — values shouldn't linger on screen.
       setTimeout(() => {
         setRevealed((r) => {
           const next = { ...r };
@@ -109,9 +109,7 @@ export default function SecretsPage() {
         `/projects/${projectId}/envs/${env}/secrets/import`,
         { method: 'POST', body: JSON.stringify({ content: importContent }) },
       );
-      toast.show(
-        `Imported ${res.imported} secrets (${res.created} created, ${res.updated} updated)`,
-      );
+      toast.show(`Imported ${res.imported} secrets (${res.created} created, ${res.updated} updated)`);
       setShowImport(false);
       setImportContent('');
       load();
@@ -144,230 +142,223 @@ export default function SecretsPage() {
     );
   }
 
+  if (!project && busy) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span className="spinner" />
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <ErrorState message={error ?? 'Project not found'} onRetry={load} />
+      </div>
+    );
+  }
+
   return (
-    <AppShell
-      breadcrumb={
-        <span className="muted" style={{ marginLeft: 6 }}>
-          / {project?.org.name} / <span style={{ color: 'var(--tx)' }}>{project?.name}</span>
-        </span>
-      }
-      sidebar={<ProjectSidebar projectId={projectId} active="secrets" />}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-        <div>
-          <p style={{ fontSize: 20, fontWeight: 500, margin: 0 }}>Secrets</p>
-          <p className="muted" style={{ margin: '4px 0 0', fontSize: 12.5 }}>
-            Values are encrypted at rest (AES-256-GCM) and only decrypted on reveal.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn" onClick={exportEnv}>
-            <i className="ti ti-copy" /> Copy all
-          </button>
-          {canWrite && (
+    <ProjectShell project={project}>
+      <div className="page">
+        <PageHeader
+          title="Secrets"
+          description="Values are encrypted at rest (AES-256-GCM) and only decrypted on reveal."
+          actions={
             <>
-              <button className="btn" onClick={() => setShowImport(true)}>
-                <i className="ti ti-file-import" /> Import .env
+              <button className="btn" onClick={exportEnv}>
+                <Icon name="copy" size={14} strokeWidth={2.2} />
+                Copy all
               </button>
-              <button className="btn primary" onClick={() => setShowAdd(true)}>
-                <i className="ti ti-plus" /> Add secret
+              {canWrite && (
+                <>
+                  <button className="btn" onClick={() => setShowImport(true)}>
+                    <Icon name="upload" size={14} strokeWidth={2.2} />
+                    Import .env
+                  </button>
+                  <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
+                    <Icon name="plus" size={14} strokeWidth={2.2} />
+                    Add secret
+                  </button>
+                </>
+              )}
+            </>
+          }
+        />
+
+        <div className="segmented">
+          {project.environments.map((e) => (
+            <button
+              key={e.id}
+              aria-pressed={env === e.name}
+              onClick={() => {
+                setEnv(e.name);
+                setRevealed({});
+              }}
+            >
+              {e.name}
+            </button>
+          ))}
+        </div>
+
+        {error && <ErrorState message={error} onRetry={load} />}
+        {busy && !error && <Loading />}
+
+        {!busy && !error && secrets.length === 0 && (
+          <div className="panel">
+            <div className="empty" style={{ padding: '56px 18px' }}>
+              <h2 style={{ margin: '0 0 6px', fontSize: 16, color: 'var(--text)' }}>No secrets in {env}</h2>
+              <p style={{ margin: '0 0 16px' }}>
+                {canWrite
+                  ? 'Add a secret or paste your existing .env file to import.'
+                  : 'Ask a project admin or writer to add secrets.'}
+              </p>
+              {canWrite && (
+                <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
+                  <Icon name="plus" size={14} strokeWidth={2.2} />
+                  Add secret
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!busy && !error && secrets.length > 0 && (
+          <div className="panel table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th style={{ width: '28%' }}>Key</th>
+                  <th>Value</th>
+                  <th style={{ width: 70 }}>Version</th>
+                  <th style={{ width: 120 }}>Updated</th>
+                  <th style={{ width: 170 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {secrets.map((s) => (
+                  <tr key={s.id}>
+                    <td className="mono" style={{ color: 'var(--accent-soft)' }}>
+                      {s.key}
+                    </td>
+                    <td>
+                      {revealed[s.key] !== undefined ? (
+                        <span className="mono" style={{ color: 'var(--text)' }}>
+                          {revealed[s.key]}
+                        </span>
+                      ) : (
+                        <span className="muted mono">••••••••••••</span>
+                      )}
+                    </td>
+                    <td className="muted">v{s.version}</td>
+                    <td className="muted">{new Date(s.updatedAt).toLocaleDateString()}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      {revealed[s.key] === undefined ? (
+                        <button className="btn btn-sm" onClick={() => reveal(s.key)}>
+                          <Icon name="eye" size={13} /> Reveal
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-sm"
+                          onClick={() =>
+                            setRevealed((r) => {
+                              const next = { ...r };
+                              delete next[s.key];
+                              return next;
+                            })
+                          }
+                        >
+                          <Icon name="eyeOff" size={13} /> Hide
+                        </button>
+                      )}
+                      {canAdmin && (
+                        <button
+                          className="btn btn-danger btn-sm"
+                          style={{ marginLeft: 6 }}
+                          onClick={() => removeSecret(s.key)}
+                        >
+                          <Icon name="trash" size={13} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showAdd && (
+        <Modal
+          title={`Add secret to ${env}`}
+          onClose={() => setShowAdd(false)}
+          footer={
+            <>
+              <button className="btn" onClick={() => setShowAdd(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={addSecret} disabled={!newKey.trim() || !newValue}>
+                Save secret
               </button>
             </>
-          )}
-        </div>
-      </div>
-
-      {/* Env tabs */}
-      <div className="env-tabs" style={{ marginBottom: 14, display: 'inline-flex' }}>
-        {(project?.environments ?? []).map((e) => (
-          <span
-            key={e.id}
-            className={env === e.name ? 'active' : ''}
-            onClick={() => {
-              setEnv(e.name);
-              setRevealed({});
-            }}
-          >
-            {e.name}
-          </span>
-        ))}
-      </div>
-
-      {busy ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-          <span className="spinner" />
-        </div>
-      ) : secrets.length === 0 ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-          <i className="ti ti-key-off" style={{ fontSize: 32, color: 'var(--mu)' }} />
-          <p style={{ marginTop: 12, fontWeight: 500 }}>No secrets in {env}</p>
-          <p className="muted" style={{ fontSize: 12.5 }}>
-            {canWrite
-              ? 'Add a secret or paste your existing .env file to import.'
-              : 'Ask a project admin or writer to add secrets.'}
-          </p>
-        </div>
-      ) : (
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <table className="data">
-            <thead>
-              <tr>
-                <th style={{ width: '30%' }}>Key</th>
-                <th>Value</th>
-                <th style={{ width: 70 }}>Version</th>
-                <th style={{ width: 130 }}>Updated</th>
-                <th style={{ width: 150 }} />
-              </tr>
-            </thead>
-            <tbody>
-              {secrets.map((s) => (
-                <tr key={s.id}>
-                  <td className="mono" style={{ color: 'var(--al)' }}>{s.key}</td>
-                  <td>
-                    {revealed[s.key] !== undefined ? (
-                      <span className="mono" style={{ color: 'var(--tx)' }}>
-                        {revealed[s.key]}
-                      </span>
-                    ) : (
-                      <span className="muted mono">••••••••••••</span>
-                    )}
-                  </td>
-                  <td className="muted">v{s.version}</td>
-                  <td className="muted">{new Date(s.updatedAt).toLocaleDateString()}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    {revealed[s.key] === undefined ? (
-                      <button className="btn" style={{ padding: '3px 8px' }} onClick={() => reveal(s.key)}>
-                        <i className="ti ti-eye" /> Reveal
-                      </button>
-                    ) : (
-                      <button
-                        className="btn"
-                        style={{ padding: '3px 8px' }}
-                        onClick={() =>
-                          setRevealed((r) => {
-                            const next = { ...r };
-                            delete next[s.key];
-                            return next;
-                          })
-                        }
-                      >
-                        <i className="ti ti-eye-off" /> Hide
-                      </button>
-                    )}
-                    {canAdmin && (
-                      <button
-                        className="btn danger"
-                        style={{ padding: '3px 8px', marginLeft: 6 }}
-                        onClick={() => removeSecret(s.key)}
-                      >
-                        <i className="ti ti-trash" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Add secret modal */}
-      {showAdd && (
-        <Modal onClose={() => setShowAdd(false)} title={`Add secret to ${env}`}>
-          <label className="muted" style={{ display: 'block', fontSize: 11.5, marginBottom: 5 }}>
-            Key
-          </label>
-          <input
-            className="input"
-            placeholder="STRIPE_SECRET_KEY"
-            value={newKey}
-            onChange={(e) => setNewKey(e.target.value)}
-            style={{ marginBottom: 12, fontFamily: 'var(--font-mono)' }}
-          />
-          <label className="muted" style={{ display: 'block', fontSize: 11.5, marginBottom: 5 }}>
-            Value
-          </label>
-          <textarea
-            className="input"
-            placeholder="sk_live_..."
-            value={newValue}
-            onChange={(e) => setNewValue(e.target.value)}
-            rows={3}
-            style={{ marginBottom: 12, fontFamily: 'var(--font-mono)', resize: 'vertical' }}
-          />
-          <p className="muted" style={{ fontSize: 11.5, margin: '0 0 14px' }}>
-            Every write creates a new immutable version — you can roll back later.
-          </p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button className="btn" onClick={() => setShowAdd(false)}>
-              Cancel
-            </button>
-            <button className="btn primary" onClick={addSecret}>
-              Save secret
-            </button>
+          }
+        >
+          <div className="field">
+            <label className="field-label">Key</label>
+            <input
+              className="input mono"
+              placeholder="STRIPE_SECRET_KEY"
+              value={newKey}
+              onChange={(e) => setNewKey(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="field">
+            <label className="field-label">Value</label>
+            <textarea
+              className="textarea mono"
+              placeholder="sk_live_..."
+              value={newValue}
+              onChange={(e) => setNewValue(e.target.value)}
+              rows={3}
+            />
+            <span className="field-help">Every write creates a new immutable version — you can roll back later.</span>
           </div>
         </Modal>
       )}
 
-      {/* Import modal */}
       {showImport && (
-        <Modal onClose={() => setShowImport(false)} title={`Import .env into ${env}`}>
-          <textarea
-            className="input"
-            placeholder={'DATABASE_URL=postgres://...\nAPI_KEY=sk_live_...\n# comments are skipped'}
-            value={importContent}
-            onChange={(e) => setImportContent(e.target.value)}
-            rows={10}
-            style={{ marginBottom: 12, fontFamily: 'var(--font-mono)', resize: 'vertical' }}
-            autoFocus
-          />
-          <p className="muted" style={{ fontSize: 11.5, margin: '0 0 14px' }}>
-            Paste your existing .env content. Existing keys are updated; new keys are created.
-          </p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button className="btn" onClick={() => setShowImport(false)}>
-              Cancel
-            </button>
-            <button className="btn primary" onClick={doImport}>
-              Import
-            </button>
+        <Modal
+          title={`Import .env into ${env}`}
+          onClose={() => setShowImport(false)}
+          footer={
+            <>
+              <button className="btn" onClick={() => setShowImport(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={doImport} disabled={!importContent.trim()}>
+                Import
+              </button>
+            </>
+          }
+        >
+          <div className="field">
+            <label className="field-label">.env content</label>
+            <textarea
+              className="textarea mono"
+              placeholder={'DATABASE_URL=postgres://...\nAPI_KEY=sk_live_...\n# comments are skipped'}
+              value={importContent}
+              onChange={(e) => setImportContent(e.target.value)}
+              rows={10}
+              autoFocus
+            />
+            <span className="field-help">
+              Paste your existing .env content. Existing keys are updated; new keys are created.
+            </span>
           </div>
         </Modal>
       )}
-    </AppShell>
-  );
-}
-
-function Modal({
-  children,
-  onClose,
-  title,
-}: {
-  children: React.ReactNode;
-  onClose: () => void;
-  title: string;
-}) {
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,.6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="card"
-        style={{ width: 440, padding: 20 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p style={{ fontWeight: 500, margin: '0 0 14px' }}>{title}</p>
-        {children}
-      </div>
-    </div>
+    </ProjectShell>
   );
 }
