@@ -130,20 +130,41 @@ export default function DocsPage() {
 
           {/* CLI */}
           <DocSection id="cli" title="CLI">
-            <Code>{`# Install
-cd packages/cli && npm run build
-npm link   # or: npm i -g .
-
-forge login                        # stores tokens in ~/.secretforge (chmod 600)
-forge init                         # link this repo → writes .secretforge.json
-forge set API_KEY=abc123 --env dev # prompts hidden if value omitted
-forge list --env dev               # keys + versions only, never values
-forge run --env dev -- npm run dev # inject secrets into the child process
-forge pull --env dev --stdout      # escape hatch: print .env format
-forge import .env --env dev        # migrate an existing .env file`}</Code>
+            <Steps
+              steps={[
+                {
+                  title: 'Install the forge CLI',
+                  code: `cd packages/cli && npm run build
+npm link   # or: npm i -g .`,
+                },
+                {
+                  title: 'Log in (once per machine)',
+                  body: 'Stores tokens in ~/.secretforge with chmod 600.',
+                  code: `forge login`,
+                },
+                {
+                  title: 'Link your repo to a project',
+                  body: 'Interactive picker; writes .secretforge.json (project ID + default env only — safe to commit).',
+                  code: `cd your-app
+forge init`,
+                },
+                {
+                  title: 'Add secrets (or migrate an existing .env)',
+                  code: `forge set API_KEY=abc123 --env dev   # prompts hidden if value omitted
+forge import .env --env dev        # bulk migration helper`,
+                },
+                {
+                  title: 'Run your app with secrets injected',
+                  body: 'Fetches decrypted secrets over HTTPS and merges them into the child process env. Nothing is written to disk.',
+                  code: `forge run --env dev -- npm run dev`,
+                },
+              ]}
+            />
             <Note>
-              <span className="mono">.secretforge.json</span> contains only the project ID and default
-              environment — safe to commit. Env resolution: <span className="mono">--env</span> flag &gt;{' '}
+              Other commands: <span className="mono">forge list</span> (keys + versions, never values),{' '}
+              <span className="mono">forge pull --stdout</span> (.env escape hatch),{' '}
+              <span className="mono">forge whoami</span>, <span className="mono">forge logout</span>. Env
+              resolution: <span className="mono">--env</span> flag &gt;{' '}
               <span className="mono">SECRETFORGE_ENV</span> &gt; project default &gt; dev.
             </Note>
           </DocSection>
@@ -169,17 +190,40 @@ forge import .env --env dev        # migrate an existing .env file`}</Code>
 
           {/* Node SDK */}
           <DocSection id="sdk-node" title="Node SDK">
-            <Code>{`npm i @secretforge/sdk`}</Code>
-            <Code>{`import { config, load } from '@secretforge/sdk';
+            <Steps
+              steps={[
+                {
+                  title: 'Create a service token',
+                  body: 'Web UI → your project → Tokens → New token, scoped to Development. Copy the sf_... token (shown once).',
+                },
+                {
+                  title: 'Link your app and set the token',
+                  code: `cd your-app
+forge init                      # writes .secretforge.json
+export SECRETFORGE_TOKEN=sf_... # or use your process manager's env`,
+                },
+                {
+                  title: 'Install the SDK',
+                  code: `npm i @secretforge/sdk`,
+                },
+                {
+                  title: 'Load secrets at boot, before anything reads them',
+                  code: `import { config } from '@secretforge/sdk';
 
-// Fetch secrets at boot and merge into process.env.
+// Merges vault secrets into process.env.
 // Real environment variables always win over the vault.
-await config();   // uses SECRETFORGE_TOKEN + .secretforge.json
-
-// Or get a plain object without touching process.env:
-const values = await load({ env: 'prod' });`}</Code>
+await config();`,
+                },
+                {
+                  title: 'Run your app as usual',
+                  code: `npm run dev   # process.env now has your secrets`,
+                },
+              ]}
+            />
             <Note>
-              Options: <span className="mono">projectId</span>, <span className="mono">env</span>,{' '}
+              Prefer no side effects? <span className="mono">load()</span> returns a plain object without
+              touching <span className="mono">process.env</span>. Options:{' '}
+              <span className="mono">projectId</span>, <span className="mono">env</span>,{' '}
               <span className="mono">token</span>, <span className="mono">url</span> — all optional when the
               env vars / link file are present.
             </Note>
@@ -187,17 +231,40 @@ const values = await load({ env: 'prod' });`}</Code>
 
           {/* Python SDK */}
           <DocSection id="sdk-python" title="Python SDK">
-            <Code>{`pip install secretforge   # stdlib only, Python 3.9+`}</Code>
-            <Code>{`import secretforge
+            <Steps
+              steps={[
+                {
+                  title: 'Create a service token',
+                  body: 'Web UI → your project → Tokens → New token, scoped to Development. Copy the sf_... token (shown once).',
+                },
+                {
+                  title: 'Link your app and set the token',
+                  code: `cd your-app
+forge init                      # writes .secretforge.json
+export SECRETFORGE_TOKEN=sf_... # or your venv / process manager env`,
+                },
+                {
+                  title: 'Install the SDK',
+                  code: `pip install secretforge   # stdlib only, Python 3.9+`,
+                },
+                {
+                  title: 'Load secrets at boot, before anything reads them',
+                  code: `import secretforge
 
-# Fetch secrets at boot and merge into os.environ.
+# Merges vault secrets into os.environ.
 # Real environment variables always win over the vault.
-secretforge.config()   # uses SECRETFORGE_TOKEN + .secretforge.json
-
-# Or get a plain dict without touching os.environ:
-values = secretforge.load(env="prod")`}</Code>
+secretforge.config()`,
+                },
+                {
+                  title: 'Run your app as usual',
+                  code: `python manage.py runserver   # os.environ now has your secrets`,
+                },
+              ]}
+            />
             <Note>
-              Options: <span className="mono">project_id</span>, <span className="mono">env</span>,{' '}
+              Prefer no side effects? <span className="mono">load()</span> returns a plain dict without
+              touching <span className="mono">os.environ</span>. Options:{' '}
+              <span className="mono">project_id</span>, <span className="mono">env</span>,{' '}
               <span className="mono">token</span>, <span className="mono">url</span> — all optional when the
               env vars / link file are present. Errors raise{' '}
               <span className="mono">secretforge.ForgeError</span> with the HTTP status.
@@ -315,6 +382,43 @@ function DocSection({ id, title, children }: { id: string; title: string; childr
 
 function Code({ children }: { children: string }) {
   return <pre className="code-block mono">{children}</pre>;
+}
+
+/** Numbered setup steps with optional body text and code blocks. */
+function Steps({ steps }: { steps: Array<{ title: string; body?: string; code?: string }> }) {
+  return (
+    <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 14 }}>
+      {steps.map((step, i) => (
+        <li key={i} style={{ display: 'flex', gap: 12 }}>
+          <span
+            aria-hidden="true"
+            style={{
+              width: 22,
+              height: 22,
+              flex: '0 0 auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'var(--accent-soft)',
+              background: 'var(--chip)',
+              border: '1px solid var(--border-strong)',
+            }}
+          >
+            {i + 1}
+          </span>
+          <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{step.title}</div>
+            {step.body && (
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>{step.body}</p>
+            )}
+            {step.code && <Code>{step.code}</Code>}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 function P({ children }: { children: React.ReactNode }) {
