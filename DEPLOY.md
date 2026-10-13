@@ -83,6 +83,16 @@ Add the production redirect URIs:
 - **GitHub** → Developer settings → OAuth Apps → your app →
   Authorization callback URL: `https://secretforge-api.onrender.com/auth/github/callback`.
 
+  > ⚠️ GitHub OAuth Apps allow only **one** callback URL. Either:
+  > - **Replace** the localhost callback with the prod one (simplest; local
+  >   GitHub sign-in stops working), or
+  > - **Create a second OAuth App** for production and set its
+  >   `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` in Render, keeping the
+  >   original app for local dev (recommended).
+  >
+  > Until this is done, prod GitHub sign-in fails with
+  > *"The redirect_uri is not associated with this application."*
+
 ## 5. Pingie support widget
 
 The widget only loads on allowlisted domains. In the Pingie dashboard for
