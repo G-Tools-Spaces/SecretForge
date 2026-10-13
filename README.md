@@ -23,6 +23,11 @@ SDK     ─┘        └──► Master key (env var) wraps per-project data k
 | 6 | Service tokens, Node + Python SDKs, CI integration | ✅ done |
 | 7 | Hardening: 2FA, rate limits, backups, docs | planned |
 
+## Deploy
+
+Production deploy: **Vercel (web) + Render (API) + Neon (Postgres)** — see
+[DEPLOY.md](DEPLOY.md). `render.yaml` is a ready-to-use Render blueprint.
+
 ## Quick start
 
 ```bash

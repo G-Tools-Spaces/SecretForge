@@ -16,8 +16,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Neon: migrations run over the direct (unpooled) endpoint; the app
+  // runtime uses the pooled endpoint. For local Postgres both URLs are
+  // the same.
+  directUrl = env("DIRECT_URL")
 }
 
 enum OrgRole {

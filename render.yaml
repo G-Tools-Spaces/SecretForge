@@ -1,0 +1,55 @@
+# Render blueprint — SecretForge API (NestJS).
+# The Next.js web app deploys separately on Vercel; the database is Neon.
+# See DEPLOY.md for the full walkthrough.
+#
+# Render → New → Blueprint → pick this repo → every env var marked
+# `sync: false` is prompted for once in the dashboard (kept out of git).
+
+services:
+  - type: web
+    name: secretforge-api
+    runtime: node
+    plan: free
+    # --include=dev: Render sets NODE_ENV=production during builds, which
+    # would otherwise skip devDependencies (typescript, nest CLI, prisma).
+    buildCommand: npm ci --include=dev && npm run build
+    # Apply pending migrations (idempotent no-op when up to date), then boot.
+    startCommand: npm run db:deploy && node apps/api/dist/main.js
+    healthCheckPath: /auth/providers
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # --- Neon -------------------------------------------------------------
+      # POOLED endpoint (host contains "-pooler") — app runtime.
+      - key: DATABASE_URL
+        sync: false
+      # DIRECT endpoint (same host without "-pooler") — prisma migrate.
+      - key: DIRECT_URL
+        sync: false
+
+      # --- Secrets (generate per environment) --------------------------------
+      # openssl rand -base64 32 — BACK THIS UP. Losing it loses ALL secrets.
+      - key: SECRETFORGE_MASTER_KEY
+        sync: false
+      # openssl rand -base64 48
+      - key: JWT_SECRET
+        sync: false
+
+      # --- URLs ---------------------------------------------------------------
+      # https://<your-app>.vercel.app (comma-separated list also allowed)
+      - key: WEB_ORIGIN
+        sync: false
+      # https://secretforge-api.onrender.com — used for OAuth redirect URIs
+      - key: API_PUBLIC_URL
+        sync: false
+
+      # --- OAuth (optional; buttons hide when unset) --------------------------
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
