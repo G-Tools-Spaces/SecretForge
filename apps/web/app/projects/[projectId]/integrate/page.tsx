@@ -58,8 +58,21 @@ forge run --env dev -- npm run dev`;
   "defaultEnv": "dev"
 }`;
 
-  const ci = `# CI (GitHub Actions) — service tokens arrive in Phase 6
-SECRETFORGE_TOKEN=sf_... forge run --env prod -- npm test`;
+  const sdk = `// npm i @secretforge/sdk
+import { config } from '@secretforge/sdk';
+
+// Fetches secrets once at boot and merges them into process.env.
+// Real environment variables always win over the vault.
+await config(); // uses SECRETFORGE_TOKEN + .secretforge.json`;
+
+  const ci = `# 1. Create a token: Tokens tab → New token (pick the env)
+# 2. Store it as a CI secret named SECRETFORGE_TOKEN
+
+# GitHub Actions
+- name: Tests with vault secrets
+  env:
+    SECRETFORGE_TOKEN: \${{ secrets.SECRETFORGE_TOKEN }}
+  run: npx @secretforge/cli run --env prod -- npm test`;
 
   return (
     <ProjectShell project={project}>
@@ -94,15 +107,26 @@ SECRETFORGE_TOKEN=sf_... forge run --env prod -- npm test`;
 
           <section className="panel">
             <div className="panel-header">
+              <h2>Node SDK</h2>
+              <span className="badge" style={{ marginLeft: 'auto' }}>
+                @secretforge/sdk
+              </span>
+            </div>
+            <pre className="code-block mono">{sdk}</pre>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
               <h2>CI / servers</h2>
-              <span className="badge badge-warn" style={{ marginLeft: 'auto' }}>
-                Phase 6
+              <span className="badge badge-ok" style={{ marginLeft: 'auto' }}>
+                service tokens
               </span>
             </div>
             <pre className="code-block mono">{ci}</pre>
             <div className="panel-body" style={{ paddingTop: 10, paddingBottom: 12 }}>
               <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>
                 Service tokens are read-only, scoped to one environment, expiring, and revocable.
+                Manage them in the Tokens tab.
               </p>
             </div>
           </section>

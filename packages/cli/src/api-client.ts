@@ -80,6 +80,10 @@ export class ApiClient {
 
   private async ensureFreshToken(): Promise<string> {
     if (!this.creds) throw new ApiError(401, 'Not logged in. Run `forge login` first.');
+
+    // Service tokens (SECRETFORGE_TOKEN) are pre-authorized and never refreshed.
+    if (this.creds.refreshToken === '') return this.creds.accessToken;
+
     const exp = decodeJwtExp(this.creds.accessToken);
     const expiringSoon = exp !== null && exp * 1000 < Date.now() + 30_000;
 
@@ -109,7 +113,7 @@ export class ApiClient {
     let token = await this.ensureFreshToken();
     let res = await this.doFetch(path, init, token);
 
-    if (res.status === 401) {
+    if (res.status === 401 && this.creds!.refreshToken !== '') {
       // Access token rejected (e.g. rotated server-side) — refresh and retry once.
       await this.refreshTokens();
       token = this.creds!.accessToken;

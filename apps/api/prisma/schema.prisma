@@ -186,6 +186,7 @@ model ServiceToken {
   environmentId String
   name         String
   hashedToken  String    @unique // SHA-256 of the sf_... token
+  tokenPrefix  String?   // first ~10 chars (sf_a1b2…) for display in UI lists
   scope        String    @default("read") // read-only by design
   ipAllowlist  String[]  @default([])
   expiresAt    DateTime

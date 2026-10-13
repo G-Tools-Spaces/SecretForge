@@ -9,28 +9,47 @@ import {
   Param,
   Post,
   Put,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Request } from 'express';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthedUser } from '../auth/jwt-payload';
 import { ProjectRoleGuard } from '../projects/project-role.guard';
 import { MinProjectRole } from '../projects/project-role.decorator';
-import { SecretsService } from './secrets.service';
+import { CombinedAuthGuard } from '../tokens/combined-auth.guard';
+import { ServiceTokenActor } from '../tokens/tokens.service';
+import { SecretActor, SecretsService } from './secrets.service';
 import { UpsertSecretDto, BulkImportDto } from './dto';
+
+type AuthedRequest = Request & {
+  user?: AuthedUser;
+  serviceToken?: ServiceTokenActor;
+};
+
+/** Build the audit actor: service token when present, else the JWT user. */
+function actorOf(req: AuthedRequest): SecretActor {
+  if (req.serviceToken) {
+    return { userId: null, actorType: 'TOKEN', tokenName: req.serviceToken.name };
+  }
+  return { userId: req.user!.id, actorType: 'USER' };
+}
 
 /**
  * Secrets routes. All paths carry :projectId so ProjectRoleGuard can enforce
  * membership + minimum role on every request (plan security req #5).
  *
+ * CombinedAuthGuard accepts user JWTs OR read-only service tokens (sf_...)
+ * scoped to the route's environment (Phase 6).
+ *
  * Role matrix:
- *   READ  → list, reveal, export, versions
+ *   READ  → list, reveal, export, versions   (service tokens: these only)
  *   WRITE → + upsert, bulk import
  *   ADMIN → + delete, rollback
  */
 @Controller('projects/:projectId/envs/:env')
-@UseGuards(JwtAuthGuard, ProjectRoleGuard)
+@UseGuards(CombinedAuthGuard, ProjectRoleGuard)
 export class SecretsController {
   constructor(private readonly secrets: SecretsService) {}
 
@@ -69,25 +88,25 @@ export class SecretsController {
   @MinProjectRole('READ')
   @Throttle({ default: { ttl: 60_000, limit: 10 } }) // plan req #8: rate limit secret reads
   export(
-    @CurrentUser() user: AuthedUser,
+    @Req() req: AuthedRequest,
     @Param('projectId') projectId: string,
     @Param('env') env: string,
     @Ip() ip: string,
   ) {
-    return this.secrets.export(projectId, env, user.id, ip);
+    return this.secrets.export(projectId, env, actorOf(req), ip);
   }
 
   @Get('secrets/:key')
   @MinProjectRole('READ')
   @Throttle({ default: { ttl: 60_000, limit: 60 } })
   reveal(
-    @CurrentUser() user: AuthedUser,
+    @Req() req: AuthedRequest,
     @Param('projectId') projectId: string,
     @Param('env') env: string,
     @Param('key') key: string,
     @Ip() ip: string,
   ) {
-    return this.secrets.reveal(projectId, env, key, user.id, ip);
+    return this.secrets.reveal(projectId, env, key, actorOf(req), ip);
   }
 
   @Get('secrets/:key/versions')

@@ -11,7 +11,7 @@ SDK     ─┘        └──► Master key (env var) wraps per-project data k
 
 ## Status
 
-**Phases 1-5 complete** — foundation, secrets core, CLI, sharing/audit hardening, and the web UI (Next.js dark theme per wireframe).
+**Phases 1-6 complete** — foundation, secrets core, CLI, sharing/audit hardening, web UI, and service tokens + Node SDK for CI.
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -20,7 +20,7 @@ SDK     ─┘        └──► Master key (env var) wraps per-project data k
 | 3 | CLI (`forge login/init/set/run/pull`) | ✅ done |
 | 4 | Roles, sharing, invites, audit hardening | ✅ done |
 | 5 | Web UI (Next.js, dark theme per wireframe) | ✅ done |
-| 6 | SDKs, service tokens, CI integration | planned |
+| 6 | Service tokens, Node SDK, CI integration | ✅ done (Python SDK later) |
 | 7 | Hardening: 2FA, rate limits, backups, docs | planned |
 
 ## Quick start
@@ -145,7 +145,39 @@ forge logout
   stale local values.
 - Env resolution: `--env` flag > `SECRETFORGE_ENV` > project default > `dev`.
 - API URL: `SECRETFORGE_URL` env var (default `http://localhost:4000`).
-- CI/servers: set `SECRETFORGE_TOKEN=sf_...` (service tokens, Phase 6).
+- CI/servers: set `SECRETFORGE_TOKEN=sf_...` (service tokens — see below).
+
+## Service tokens & Node SDK (Phase 6)
+
+Service tokens are **read-only, scoped to one environment, expiring, and
+revocable** — built for CI and servers. Only the SHA-256 hash is stored; the
+plaintext `sf_...` token is shown once at creation.
+
+```bash
+# Manage in the web UI (Project → Tokens) or via the API:
+POST   /projects/:id/envs/:env/tokens   { "name": "GH Actions", "expiresInDays": 30 }  (ADMIN)
+GET    /projects/:id/tokens             # metadata list (READ)
+DELETE /projects/:id/tokens/:tokenId    # revoke (ADMIN)
+```
+
+Use a token anywhere instead of user credentials:
+
+```bash
+# CLI — no `forge login` needed:
+SECRETFORGE_TOKEN=sf_... forge run --env prod -- node server.js
+
+# Node SDK — secrets merged into process.env at boot (real env vars win):
+import { config } from '@secretforge/sdk';
+await config();   // uses SECRETFORGE_TOKEN + .secretforge.json
+
+# GitHub Actions:
+- env:
+    SECRETFORGE_TOKEN: ${{ secrets.SECRETFORGE_TOKEN }}
+  run: npx @secretforge/cli run --env prod -- npm test
+```
+
+Token misuse (wrong env, write attempts, revoked/expired use) is audited with
+`actorType: TOKEN` and the token name — never the token itself.
 
 ## Repo layout
 
@@ -153,8 +185,8 @@ forge logout
 apps/api          NestJS REST API + Prisma schema + tests
 apps/web          Next.js web UI (dark theme per wireframe)
 packages/cli      forge CLI (login/init/set/list/run/pull/import)
-packages/sdk-node (Phase 6)
-packages/sdk-python (Phase 6)
+packages/sdk-node @secretforge/sdk — load()/config() for Node apps
+packages/sdk-python (later)
 deploy/Caddyfile  HTTPS reverse proxy config
 ```
 

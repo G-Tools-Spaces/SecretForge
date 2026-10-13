@@ -29,6 +29,25 @@ export class ProjectRoleGuard implements CanActivate {
     if (!requiredRole) return true; // no role requirement declared
 
     const projectId = request.params.projectId;
+
+    // Service-token request (CombinedAuthGuard): env scope was already
+    // enforced at validation; tokens are read-only by design (plan req #7).
+    const serviceToken = request.serviceToken as { projectId: string; name: string } | undefined;
+    if (serviceToken) {
+      if (requiredRole !== 'READ') {
+        await this.audit.record({
+          action: 'ACCESS_DENIED',
+          actorType: 'TOKEN',
+          projectId: serviceToken.projectId,
+          resource: `project/${projectId}${request.path ? request.path.replace(/^\/projects\/[^/]+/, '') : ''}`,
+          ip: request.ip,
+          meta: { reason: 'token_write_attempt', requiredRole, tokenName: serviceToken.name },
+        });
+        throw new ForbiddenException('Service tokens are read-only');
+      }
+      return true;
+    }
+
     const userId = request.user?.id;
     if (!projectId || !userId) {
       throw new ForbiddenException('Missing project or user context');

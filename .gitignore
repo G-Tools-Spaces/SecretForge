@@ -28,3 +28,4 @@ coverage/
 
 # NOTE: `.secretforge.json` (project link file) is intentionally NOT ignored —
 # it contains only a project ID + default env name and is safe to commit.
+palatte.png

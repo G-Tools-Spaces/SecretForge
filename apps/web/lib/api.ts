@@ -134,6 +134,26 @@ export interface SecretRow {
   createdAt: string;
 }
 
+export interface ServiceTokenInfo {
+  id: string;
+  name: string;
+  environment: string;
+  prefix: string | null;
+  scope: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreatedToken {
+  id: string;
+  name: string;
+  environment: string;
+  token: string; // plaintext — shown exactly once
+  expiresAt: string;
+}
+
 export interface AuditEntry {
   id: string;
   action: string;

@@ -9,6 +9,13 @@ import { EnvelopeEncryptionService } from '../crypto/envelope-encryption.service
 import { AuditService } from '../audit/audit.service';
 import { isValidEnvName, isValidSecretKey, parseEnvContent } from './env-format';
 
+/** Who is reading/writing: a user (JWT) or a service token (Phase 6). */
+export interface SecretActor {
+  userId: string | null;
+  actorType: 'USER' | 'TOKEN';
+  tokenName?: string;
+}
+
 /**
  * Secrets core (Phase 2).
  *
@@ -163,7 +170,7 @@ export class SecretsService {
   }
 
   /** Decrypt one secret. Every reveal is audited (plan security req #6). */
-  async reveal(projectId: string, envName: string, key: string, userId: string, ip?: string) {
+  async reveal(projectId: string, envName: string, key: string, actor: SecretActor, ip?: string) {
     const env = await this.resolveEnv(projectId, envName);
     const secret = await this.prisma.secret.findUnique({
       where: { environmentId_key: { environmentId: env.id, key } },
@@ -184,11 +191,12 @@ export class SecretsService {
 
     await this.audit.record({
       action: 'SECRET_REVEALED',
-      userId,
+      actorType: actor.actorType,
+      userId: actor.userId,
       projectId,
       resource: `project/${projectId}/env/${envName}/secret/${key}`,
       ip,
-      meta: { version: secret.version, env: envName },
+      meta: { version: secret.version, env: envName, ...(actor.tokenName ? { tokenName: actor.tokenName } : {}) },
     });
 
     return { key, value, version: secret.version };
@@ -248,7 +256,7 @@ export class SecretsService {
   }
 
   /** Export all secrets for an env as `.env` text. Audited as a bulk read. */
-  async export(projectId: string, envName: string, userId: string, ip?: string) {
+  async export(projectId: string, envName: string, actor: SecretActor, ip?: string) {
     const env = await this.resolveEnv(projectId, envName);
     const secrets = await this.prisma.secret.findMany({
       where: { environmentId: env.id },
@@ -268,11 +276,17 @@ export class SecretsService {
 
     await this.audit.record({
       action: 'SECRET_READ',
-      userId,
+      actorType: actor.actorType,
+      userId: actor.userId,
       projectId,
       resource: `project/${projectId}/env/${envName}/secrets`,
       ip,
-      meta: { env: envName, count: secrets.length, purpose: 'export' },
+      meta: {
+        env: envName,
+        count: secrets.length,
+        purpose: 'export',
+        ...(actor.tokenName ? { tokenName: actor.tokenName } : {}),
+      },
     });
 
     return { environment: env.name, count: secrets.length, values };

@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { ProjectsModule } from './projects/projects.module';
 import { SecretsModule } from './secrets/secrets.module';
+import { TokensModule } from './tokens/tokens.module';
 import { AuditModule } from './audit/audit.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { AuditModule } from './audit/audit.module';
     OrgsModule,
     ProjectsModule,
     SecretsModule,
+    TokensModule,
     AuditModule,
   ],
   providers: [
