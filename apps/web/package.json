@@ -1,0 +1,24 @@
+{
+  "name": "@secretforge/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SecretForge web UI — Next.js App Router, dark theme per wireframe",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@tabler/icons-webfont": "^3.31.0",
+    "next": "^14.2.21",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "typescript": "^5.7.3"
+  }
+}

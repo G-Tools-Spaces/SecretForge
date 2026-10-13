@@ -11,7 +11,7 @@ SDK     ─┘        └──► Master key (env var) wraps per-project data k
 
 ## Status
 
-**Phases 1-2 complete** — foundation + secrets core: auth, orgs, projects, roles, audit log, envelope encryption, secrets CRUD with versioning/rollback, bulk `.env` import/export.
+**Phases 1-5 complete** — foundation, secrets core, CLI, sharing/audit hardening, and the web UI (Next.js dark theme per wireframe).
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -19,7 +19,7 @@ SDK     ─┘        └──► Master key (env var) wraps per-project data k
 | 2 | Secrets CRUD with encryption, versioning | ✅ done |
 | 3 | CLI (`forge login/init/set/run/pull`) | ✅ done |
 | 4 | Roles, sharing, invites, audit hardening | ✅ done |
-| 5 | Web UI (Next.js, dark theme per wireframe) | planned |
+| 5 | Web UI (Next.js, dark theme per wireframe) | ✅ done |
 | 6 | SDKs, service tokens, CI integration | planned |
 | 7 | Hardening: 2FA, rate limits, backups, docs | planned |
 
@@ -37,7 +37,8 @@ docker compose up -d postgres
 # 3. Install + migrate + run
 npm install
 npm run db:migrate
-npm run dev          # API on http://localhost:4000
+npm run dev -w apps/api     # API on http://localhost:4000
+npm run dev -w apps/web     # Web UI on http://localhost:3000
 ```
 
 ### Tests
@@ -97,6 +98,28 @@ POST   /projects/:projectId/envs/:env/secrets/:key/versions/:v/rollback  # ADMIN
 - **Rate limits**: global 300 req/min; login 10/min; reveal 60/min; export 10/min.
 - **Versioning**: every write creates an immutable version row; rollback copies an old version forward (history is append-only).
 
+## Web UI (Phase 5)
+
+Next.js 14 App Router, dark theme matching the wireframe (`#0b0b0d` background,
+blue `#3b82f6` accent, Tabler icons). Talks to the API through a same-origin
+rewrite (`/api/*` → `http://localhost:4000/*`), so no CORS setup is needed.
+
+```bash
+npm run dev -w apps/web    # http://localhost:3000
+npm run build -w apps/web   # production build
+```
+
+Screens:
+- **Login / signup** — argon2id-backed auth, tokens auto-refresh on 401
+- **Projects dashboard** — org/project grid, create org + project modals
+- **Project overview** — stat cards, secrets-per-environment bars, recent activity
+- **Secrets** — env tabs (dev/staging/prod), masked values, reveal (auto-hides
+  after 30s), add/edit, `.env` import, copy-all export, delete; buttons
+  role-gated by `yourRole` (ADMIN/WRITE/READ)
+- **Members** — share by email from org members, role dropdowns, remove
+- **Audit** — filterable, paginated table; denied attempts highlighted
+- **Integrate** — copy-paste CLI/SDK snippets for the project
+
 ## The `forge` CLI (Phase 3)
 
 ```bash
@@ -128,6 +151,7 @@ forge logout
 
 ```
 apps/api          NestJS REST API + Prisma schema + tests
+apps/web          Next.js web UI (dark theme per wireframe)
 packages/cli      forge CLI (login/init/set/list/run/pull/import)
 packages/sdk-node (Phase 6)
 packages/sdk-python (Phase 6)
