@@ -150,11 +150,11 @@ textarea {
 .btn-primary {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: #0b2f2a;
+  color: #000000;
 }
 .btn-primary:hover {
   background: var(--accent);
-  color: #0b2f2a;
+  color: #000000;
 }
 .btn-danger {
   background: transparent;
