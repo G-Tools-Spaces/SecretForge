@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Icon } from '@/components/Icon';
 import { useUser } from '@/lib/useUser';
 import { api, auth, Org, Project } from '@/lib/api';
 import s from './shell.module.css';
@@ -50,19 +49,41 @@ export function Topbar({ project }: { project?: Project }) {
 
   if (!user) return null;
 
+  // The org in context: the project's org on project pages, else the first.
+  const contextOrg = project
+    ? orgs.find((o) => o.id === project.org.id) ?? { id: project.org.id, name: project.org.name }
+    : orgs[0];
+
   return (
     <header className={s.topbar}>
       <nav aria-label="Breadcrumb" className={s.crumbs}>
         <Link href="/projects" className={s.brand}>
-          SecretForge
+          Secret<span style={{ color: 'var(--accent-soft)' }}>Forge</span>
         </Link>
-        {orgs.map((o) => (
-          <Link key={o.id} href={`/orgs/${o.id}`} className={s.orgChip} title={`${o.name} — manage organization`}>
-            <Icon name="building" size={12} strokeWidth={2.2} />
-            {o.name}
-            <span className={s.orgChipCount}>{o._count?.projects ?? 0}</span>
-          </Link>
-        ))}
+        {contextOrg && (
+          <>
+            <span aria-hidden="true" className={s.slash}>
+              /
+            </span>
+            <Link
+              href={`/orgs/${contextOrg.id}`}
+              className={s.switcher}
+              style={{ textDecoration: 'none' }}
+              title="Manage organization"
+            >
+              <span aria-hidden="true" className={s.orgMark}>
+                {contextOrg.name.slice(0, 1).toUpperCase()}
+              </span>
+              {contextOrg.name}
+            </Link>
+          </>
+        )}
+        {!project &&
+          orgs.slice(1).map((o) => (
+            <Link key={o.id} href={`/orgs/${o.id}`} className={s.navLink} style={{ fontSize: 12 }}>
+              {o.name}
+            </Link>
+          ))}
         {project && (
           <>
             <span aria-hidden="true" className={s.slash}>
