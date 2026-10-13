@@ -147,6 +147,10 @@ Screens:
 
 ## The `forge` CLI (Phase 3)
 
+> **End-user setup (Windows / macOS / Linux):** the only prerequisite is
+> Node.js 20+. See [GUIDELINES.md §9.1](GUIDELINES.md#91-install--setup-windows--macos--linux)
+> for per-OS download & install steps.
+
 ```bash
 cd packages/cli && npm run build
 node packages/cli/dist/index.js --help   # or: npm i -g . && forge --help

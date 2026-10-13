@@ -251,13 +251,77 @@ environment, lifetime in days → **Create**.
 
 The `forge` CLI brings the vault into your terminal.
 
-### 9.1 Install & log in
+### 9.1 Install & setup (Windows / macOS / Linux)
+
+**Yes — one download is required: Node.js 20 or newer.** The CLI itself is a
+small npm package (`forge` command); it has no other system dependencies.
+
+#### Step 1 — Install Node.js 20+
+
+**Windows**
+- Easiest: download the **LTS installer** from <https://nodejs.org> and run it
+  (includes npm), **or**
+- `winget install OpenJS.NodeJS.LTS` in PowerShell, **or**
+- [nvm-windows](https://github.com/coreybutler/nvm-windows): `nvm install 20 && nvm use 20`
+- Verify in a **new** terminal: `node -v` → should print `v20.x` or higher.
+
+**macOS**
+- `brew install node` (Homebrew), **or**
+- the LTS installer from <https://nodejs.org>, **or**
+- `nvm install 20 && nvm use 20` ([nvm](https://github.com/nvm-sh/nvm))
+- Verify: `node -v`
+
+**Linux**
+- Ubuntu/Debian: `sudo apt install nodejs npm` (or NodeSource for the latest 20.x:
+  `curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs`)
+- Fedora/RHEL: `sudo dnf install nodejs`
+- Any distro via nvm: `nvm install 20 && nvm use 20`
+- Verify: `node -v`
+
+#### Step 2 — Install the forge CLI
+
+Once published to npm (recommended):
 
 ```bash
-npm install -g @secretforge/cli     # or run from the repo: packages/cli
+npm install -g @secretforge/cli
+```
+
+Until then, install from the repo:
+
+```bash
+git clone <your-secretforge-repo-url> && cd SecretForge
+npm install
+npm run build -w packages/cli
+npm link -w packages/cli        # puts `forge` on your PATH globally
+```
+
+#### Step 3 — Verify the install
+
+```bash
+forge --help        # prints the command list
+```
+
+#### Step 4 — Point it at your server & log in
+
+The CLI talks to `http://localhost:4000` by default. If your SecretForge API
+runs elsewhere, set `SECRETFORGE_URL` first:
+
+```bash
+# macOS / Linux (bash/zsh — add to ~/.zshrc or ~/.bashrc to persist)
+export SECRETFORGE_URL="https://api.your-domain.com"
+
+# Windows PowerShell (persists for your user)
+[Environment]::SetEnvironmentVariable('SECRETFORGE_URL', 'https://api.your-domain.com', 'User')
+```
+
+```bash
 forge login                         # email + password (or service token)
 forge whoami                        # verify you're authenticated
 ```
+
+Credentials are stored in `~/.secretforge/credentials.json`
+(`C:\Users\<you>\.secretforge\credentials.json` on Windows) with
+owner-only permissions (chmod 600). `forge logout` deletes them.
 
 ### 9.2 Link a project
 
