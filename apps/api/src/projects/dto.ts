@@ -33,3 +33,18 @@ export class UpdateProjectMemberRoleDto {
   @IsIn(['ADMIN', 'WRITE', 'READ'])
   role!: 'ADMIN' | 'WRITE' | 'READ';
 }
+
+export class UpdateProjectDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  name!: string;
+}
+
+export class AddEnvironmentDto {
+  /** e.g. "qa", "preview" — validated against env-name rules in the service. */
+  @IsString()
+  @MinLength(1)
+  @MaxLength(40)
+  name!: string;
+}

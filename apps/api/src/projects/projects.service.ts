@@ -10,6 +10,7 @@ import { EnvelopeEncryptionService } from '../crypto/envelope-encryption.service
 import { AuditService } from '../audit/audit.service';
 import { OrgsService } from '../orgs/orgs.service';
 import { slugify } from '../orgs/orgs.service';
+import { isValidEnvName } from '../secrets/env-format';
 import { CreateProjectDto, AddProjectMemberDto } from './dto';
 import { ProjectRole } from './project-role.decorator';
 
@@ -118,6 +119,86 @@ export class ProjectsService {
 
     const { wrappedDataKey: _wdk, ...safe } = project;
     return { ...safe, yourRole: member.role };
+  }
+
+  /** Rename a project (ADMIN — enforced by the guard). */
+  async update(projectId: string, userId: string, name: string, ip?: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+
+    const updated = await this.prisma.project.update({
+      where: { id: projectId },
+      data: { name },
+    });
+
+    await this.audit.record({
+      action: 'PROJECT_UPDATED',
+      userId,
+      orgId: project.orgId,
+      projectId,
+      resource: `project/${projectId}`,
+      ip,
+      meta: { field: 'name', from: project.name, to: name },
+    });
+
+    const { wrappedDataKey: _wdk, ...safe } = updated;
+    return safe;
+  }
+
+  /** Add a custom environment (e.g. "qa") to a project (ADMIN). */
+  async addEnvironment(projectId: string, userId: string, name: string, ip?: string) {
+    const envName = name.trim().toLowerCase();
+    if (!isValidEnvName(envName)) {
+      throw new BadRequestException(
+        `Invalid environment name "${name.slice(0, 40)}": lowercase letters, digits, and dashes only`,
+      );
+    }
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+
+    const existing = await this.prisma.environment.findUnique({
+      where: { projectId_name: { projectId, name: envName } },
+    });
+    if (existing) throw new ConflictException(`Environment "${envName}" already exists`);
+
+    const env = await this.prisma.environment.create({
+      data: { projectId, name: envName },
+      select: { id: true, name: true },
+    });
+
+    await this.audit.record({
+      action: 'PROJECT_UPDATED',
+      userId,
+      orgId: project.orgId,
+      projectId,
+      resource: `project/${projectId}/env/${envName}`,
+      ip,
+      meta: { addedEnv: envName },
+    });
+
+    return env;
+  }
+
+  /**
+   * Delete a project and everything under it (envs, secrets, versions,
+   * members, service tokens — all cascade). Audit entries survive because
+   * AuditLog.projectId is intentionally not a FK.
+   */
+  async remove(projectId: string, userId: string, ip?: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+
+    await this.prisma.project.delete({ where: { id: projectId } });
+
+    await this.audit.record({
+      action: 'PROJECT_DELETED',
+      userId,
+      orgId: project.orgId,
+      projectId,
+      resource: `project/${projectId}`,
+      ip,
+      meta: { name: project.name, slug: project.slug },
+    });
   }
 
   /** Add a member. Only project ADMINs may do this, and the target must be in the org. */
