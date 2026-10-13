@@ -69,6 +69,9 @@ export function Topbar({ project }: { project?: Project }) {
         <Link href="/projects" className={s.navLink}>
           Projects
         </Link>
+        <Link href="/docs" className={s.navLink}>
+          Docs
+        </Link>
         <div ref={accountRef} className={s.switcherWrap}>
           <button
             type="button"
