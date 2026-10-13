@@ -45,7 +45,7 @@ export default function LoginPage() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: 16,
-        backgroundImage: 'radial-gradient(#17171b 1px, transparent 1px)',
+        backgroundImage: 'radial-gradient(#121737 1px, transparent 1px)',
         backgroundSize: '18px 18px',
       }}
     >
