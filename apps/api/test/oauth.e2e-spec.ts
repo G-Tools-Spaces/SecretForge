@@ -54,6 +54,21 @@ describe('OAuth (e2e)', () => {
     );
     await app.init();
     prisma = app.get(PrismaService);
+
+    // Clean leftovers from previous runs — the mocked provider account ids
+    // (g-sub-*, 4242) are fixed, so stale rows would hijack the
+    // email-linking assertions. User deletion cascades to OAuthAccount.
+    await prisma.user.deleteMany({
+      where: {
+        OR: [
+          { email: { startsWith: 'goog-' } },
+          { email: { startsWith: 'gh-' } },
+          { email: { startsWith: 'link-' } },
+          { email: { startsWith: 'unverified-' } },
+          { oauthAccounts: { some: { providerAccountId: { in: ['g-sub-1', 'g-sub-2', 'g-sub-3', '4242'] } } } },
+        ],
+      },
+    });
   });
 
   afterAll(async () => {
