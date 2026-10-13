@@ -138,34 +138,60 @@ export default function DocsPage() {
 npm link   # or: npm i -g .`,
                 },
                 {
-                  title: 'Log in (once per machine)',
+                  title: 'forge login — authenticate (once per machine)',
                   body: 'Stores tokens in ~/.secretforge with chmod 600.',
                   code: `forge login`,
                 },
                 {
-                  title: 'Link your repo to a project',
+                  title: 'forge init — link your repo to a project',
                   body: 'Interactive picker; writes .secretforge.json (project ID + default env only — safe to commit).',
                   code: `cd your-app
 forge init`,
                 },
                 {
-                  title: 'Add secrets (or migrate an existing .env)',
-                  code: `forge set API_KEY=abc123 --env dev   # prompts hidden if value omitted
-forge import .env --env dev        # bulk migration helper`,
+                  title: 'forge set — add or update a secret',
+                  body: 'Prompts hidden if the value is omitted. Every write creates a new version.',
+                  code: `forge set API_KEY=abc123 --env dev
+forge set API_KEY            # hidden prompt`,
                 },
                 {
-                  title: 'Run your app with secrets injected',
+                  title: 'forge import — migrate an existing .env file',
+                  body: 'Bulk-pushes every KEY=value into the vault. Rotate those secrets afterwards if they were ever shared.',
+                  code: `forge import .env --env dev`,
+                },
+                {
+                  title: 'forge list — see keys and versions',
+                  body: 'Never prints values — keys, version numbers, and timestamps only.',
+                  code: `forge list --env dev`,
+                },
+                {
+                  title: 'forge run — start your app with secrets injected',
                   body: 'Fetches decrypted secrets over HTTPS and merges them into the child process env. Nothing is written to disk.',
                   code: `forge run --env dev -- npm run dev`,
+                },
+                {
+                  title: 'forge pull — .env escape hatch',
+                  body: 'Prints or writes plaintext .env format. Use sparingly — the file is chmod 600 and you should delete it when done.',
+                  code: `forge pull --env dev --stdout   # print only
+forge pull --env dev            # writes ./.env (chmod 600)`,
+                },
+                {
+                  title: 'forge whoami — check the current session',
+                  code: `forge whoami`,
+                },
+                {
+                  title: 'forge logout — revoke and clear local tokens',
+                  body: 'Revokes the refresh token server-side and removes local credentials.',
+                  code: `forge logout`,
                 },
               ]}
             />
             <Note>
-              Other commands: <span className="mono">forge list</span> (keys + versions, never values),{' '}
-              <span className="mono">forge pull --stdout</span> (.env escape hatch),{' '}
-              <span className="mono">forge whoami</span>, <span className="mono">forge logout</span>. Env
-              resolution: <span className="mono">--env</span> flag &gt;{' '}
-              <span className="mono">SECRETFORGE_ENV</span> &gt; project default &gt; dev.
+              Env resolution: <span className="mono">--env</span> flag &gt;{' '}
+              <span className="mono">SECRETFORGE_ENV</span> &gt; project default &gt; dev. API URL:{' '}
+              <span className="mono">SECRETFORGE_URL</span> (default http://localhost:4000). In CI, skip
+              login entirely — set <span className="mono">SECRETFORGE_TOKEN</span> instead (see Service
+              tokens).
             </Note>
           </DocSection>
 
