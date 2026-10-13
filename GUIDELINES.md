@@ -283,7 +283,7 @@ small npm package (`forge` command); it has no other system dependencies.
 From npm (recommended):
 
 ```bash
-npm install -g @secretforge/cli
+npm install -g @gtools-spaces/cli
 ```
 
 Or install from the repo (contributors / pre-release):
@@ -357,7 +357,7 @@ forge list          # no login needed; read-only, single environment
 
 ## 10. Node.js SDK
 
-Package: `@secretforge/sdk`
+Package: `@gtools-spaces/sdk`
 
 ### Step-by-step setup
 
@@ -368,7 +368,7 @@ Package: `@secretforge/sdk`
 3. **Install the SDK**:
 
    ```bash
-   npm install @secretforge/sdk
+   npm install @gtools-spaces/sdk
    ```
 
 4. **Provide the token** — either env vars:
@@ -385,7 +385,7 @@ Package: `@secretforge/sdk`
 5. **Load secrets at boot, before anything else reads them**:
 
    ```ts
-   import { load } from '@secretforge/sdk';
+   import { load } from '@gtools-spaces/sdk';
 
    await load(); // process.env now contains your secrets
 

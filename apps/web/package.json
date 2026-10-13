@@ -1,5 +1,5 @@
 {
-  "name": "@secretforge/web",
+  "name": "@gtools-spaces/web",
   "version": "0.1.0",
   "private": true,
   "description": "SecretForge web UI — Next.js App Router, dark theme per wireframe",

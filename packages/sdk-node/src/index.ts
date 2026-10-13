@@ -12,7 +12,7 @@ import { dirname, join, resolve } from 'path';
  * servers should never carry a user's session.
  *
  * ```ts
- * import { config } from '@secretforge/sdk';
+ * import { config } from '@gtools-spaces/sdk';
  * await config(); // process.env now has your secrets
  * ```
  */

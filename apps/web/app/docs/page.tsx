@@ -152,7 +152,7 @@ nvm install 20 && nvm use 20    # any OS via nvm`,
                 {
                   title: 'Install the forge CLI',
                   body: 'From npm (recommended). Or from the repo, for contributors:',
-                  code: `npm install -g @secretforge/cli
+                  code: `npm install -g @gtools-spaces/cli
 
 # or from the repo:
 cd packages/cli && npm run build
@@ -256,11 +256,11 @@ export SECRETFORGE_TOKEN=sf_... # or use your process manager's env`,
                 },
                 {
                   title: 'Install the SDK',
-                  code: `npm i @secretforge/sdk`,
+                  code: `npm i @gtools-spaces/sdk`,
                 },
                 {
                   title: 'Load secrets at boot, before anything reads them',
-                  code: `import { config } from '@secretforge/sdk';
+                  code: `import { config } from '@gtools-spaces/sdk';
 
 // Merges vault secrets into process.env.
 // Real environment variables always win over the vault.
@@ -333,7 +333,7 @@ secretforge.config()`,
 - name: Tests with vault secrets
   env:
     SECRETFORGE_TOKEN: \${{ secrets.SECRETFORGE_TOKEN }}
-  run: npx @secretforge/cli run --env prod -- npm test`}</Code>
+  run: npx @gtools-spaces/cli run --env prod -- npm test`}</Code>
           </DocSection>
 
           {/* Roles */}

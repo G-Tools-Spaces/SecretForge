@@ -1,5 +1,5 @@
 {
-  "name": "@secretforge/api",
+  "name": "@gtools-spaces/api",
   "version": "0.1.0",
   "private": true,
   "description": "SecretForge REST API — NestJS + Prisma + PostgreSQL",

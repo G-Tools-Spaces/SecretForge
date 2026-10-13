@@ -16,7 +16,7 @@ A centralised secrets vault for a team of 3-4 developers working on multiple pro
 | Project link file | `.secretforge.json` (safe to commit; only project ID + default env) |
 | Service token env var | `SECRETFORGE_TOKEN` (tokens prefixed `sf_`) |
 | API URL env var | `SECRETFORGE_URL` |
-| Node SDK | `@secretforge/sdk` |
+| Node SDK | `@gtools-spaces/sdk` |
 | Python SDK | `secretforge` |
 | Docker images | `secretforge-api`, `secretforge-web` |
 

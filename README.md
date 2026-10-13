@@ -201,7 +201,7 @@ Use a token anywhere instead of user credentials:
 SECRETFORGE_TOKEN=sf_... forge run --env prod -- node server.js
 
 # Node SDK — secrets merged into process.env at boot (real env vars win):
-import { config } from '@secretforge/sdk';
+import { config } from '@gtools-spaces/sdk';
 await config();   // uses SECRETFORGE_TOKEN + .secretforge.json
 
 # Python SDK — same, into os.environ:
@@ -211,7 +211,7 @@ secretforge.config()
 # GitHub Actions:
 - env:
     SECRETFORGE_TOKEN: ${{ secrets.SECRETFORGE_TOKEN }}
-  run: npx @secretforge/cli run --env prod -- npm test
+  run: npx @gtools-spaces/cli run --env prod -- npm test
 ```
 
 Token misuse (wrong env, write attempts, revoked/expired use) is audited with
@@ -223,7 +223,7 @@ Token misuse (wrong env, write attempts, revoked/expired use) is audited with
 apps/api          NestJS REST API + Prisma schema + tests
 apps/web          Next.js web UI (dark theme per wireframe)
 packages/cli      forge CLI (login/init/set/list/run/pull/import)
-packages/sdk-node @secretforge/sdk — load()/config() for Node apps
+packages/sdk-node @gtools-spaces/sdk — load()/config() for Node apps
 packages/sdk-python secretforge — load()/config() for Python apps (stdlib only)
 deploy/Caddyfile  HTTPS reverse proxy config
 ```

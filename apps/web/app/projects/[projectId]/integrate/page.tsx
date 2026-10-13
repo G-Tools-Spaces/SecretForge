@@ -58,8 +58,8 @@ forge run --env dev -- npm run dev`;
   "defaultEnv": "dev"
 }`;
 
-  const sdk = `// npm i @secretforge/sdk
-import { config } from '@secretforge/sdk';
+  const sdk = `// npm i @gtools-spaces/sdk
+import { config } from '@gtools-spaces/sdk';
 
 // Fetches secrets once at boot and merges them into process.env.
 // Real environment variables always win over the vault.
@@ -72,7 +72,7 @@ await config(); // uses SECRETFORGE_TOKEN + .secretforge.json`;
 - name: Tests with vault secrets
   env:
     SECRETFORGE_TOKEN: \${{ secrets.SECRETFORGE_TOKEN }}
-  run: npx @secretforge/cli run --env prod -- npm test`;
+  run: npx @gtools-spaces/cli run --env prod -- npm test`;
 
   return (
     <ProjectShell project={project}>
@@ -109,7 +109,7 @@ await config(); // uses SECRETFORGE_TOKEN + .secretforge.json`;
             <div className="panel-header">
               <h2>Node SDK</h2>
               <span className="badge" style={{ marginLeft: 'auto' }}>
-                @secretforge/sdk
+                @gtools-spaces/sdk
               </span>
             </div>
             <pre className="code-block mono">{sdk}</pre>

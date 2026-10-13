@@ -1,5 +1,5 @@
 {
-  "name": "@secretforge/sdk",
+  "name": "@gtools-spaces/sdk",
   "version": "0.1.0",
   "private": true,
   "description": "SecretForge Node SDK — load vault secrets into process.env at boot; no more .env files.",

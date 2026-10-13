@@ -1,4 +1,4 @@
-# @secretforge/cli
+# @gtools-spaces/cli
 
 `forge` — the SecretForge CLI. Fetch secrets from your team's SecretForge
 vault and inject them into your app's environment. No more `.env` files.
@@ -6,7 +6,7 @@ vault and inject them into your app's environment. No more `.env` files.
 ## Install
 
 ```bash
-npm install -g @secretforge/cli
+npm install -g @gtools-spaces/cli
 ```
 
 Requires Node.js 20+. Two commands are installed: `forge` and `secretforge`
@@ -58,7 +58,7 @@ encryption); the CLI only ever sees plaintext in memory.
 - env:
     SECRETFORGE_URL: https://your-api.example.com
     SECRETFORGE_TOKEN: ${{ secrets.SECRETFORGE_TOKEN }}
-  run: npx @secretforge/cli run --env prod -- npm test
+  run: npx @gtools-spaces/cli run --env prod -- npm test
 ```
 
 ## Links

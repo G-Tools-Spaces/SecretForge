@@ -9,7 +9,7 @@ RUN npm install
 
 COPY apps/api apps/api
 RUN npx prisma generate --schema apps/api/prisma/schema.prisma
-RUN npm run build --workspace @secretforge/api
+RUN npm run build --workspace @gtools-spaces/api
 
 # ── Runtime stage ───────────────────────────────────────────────────────────
 FROM node:20-alpine
