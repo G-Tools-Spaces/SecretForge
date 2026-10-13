@@ -64,7 +64,6 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
   padding: 6px 8px 6px 0;
   color: var(--text);
   text-decoration: none;
