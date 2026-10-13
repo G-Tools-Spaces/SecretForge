@@ -43,6 +43,12 @@ export class UpdateProfileDto {
   name!: string;
 }
 
+export class OAuthExchangeDto {
+  @IsString()
+  @MinLength(1)
+  code!: string;
+}
+
 export class ChangePasswordDto {
   @IsString()
   @MinLength(1)

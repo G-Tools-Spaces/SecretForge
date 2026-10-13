@@ -4,11 +4,16 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import * as dotenv from 'dotenv';
+import { resolve } from 'path';
 import { AppModule } from './app.module';
 import { EnvService } from './config/env.service';
 
-// Load .env before anything reads process.env.
+// Load .env before anything reads process.env. Try the app dir (CWD) first,
+// then the repo root (covers both dist/main.js and dist/src/main.js layouts)
+// so `npm run dev` works from any directory in the monorepo.
 dotenv.config();
+dotenv.config({ path: resolve(__dirname, '../../.env') });
+dotenv.config({ path: resolve(__dirname, '../../../.env') });
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });

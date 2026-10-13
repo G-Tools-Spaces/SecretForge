@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from '@node-rs/argon2';
 import { createHash, randomBytes } from 'crypto';
@@ -33,7 +33,8 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
-  private async issueTokens(userId: string, email: string, device?: string, ip?: string): Promise<TokenPair> {
+  /** Public so OAuthService can issue a pair after a verified social sign-in. */
+  async issueTokens(userId: string, email: string, device?: string, ip?: string): Promise<TokenPair> {
     const payload: JwtPayload = { sub: userId, email };
     const accessToken = await this.jwt.signAsync(payload, {
       expiresIn: this.env.accessTokenTtl,
@@ -167,10 +168,16 @@ export class AuthService {
    * current session stays valid (its access token is short-lived anyway).
    */
   async changePassword(userId: string, dto: ChangePasswordDto, currentRefreshToken?: string, ip?: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new UnauthorizedException();
+     const user = await this.prisma.user.findUnique({ where: { id: userId } });
+     if (!user) throw new UnauthorizedException();
 
-    const ok = await verify(user.passwordHash, dto.currentPassword);
+     if (!user.passwordHash) {
+       throw new BadRequestException(
+         'This account uses social sign-in and has no password. Ask an admin to reset access if needed.',
+       );
+     }
+
+     const ok = await verify(user.passwordHash, dto.currentPassword);
     if (!ok) {
       await this.audit.record({
         action: 'USER_LOGIN_FAILED',

@@ -226,6 +226,33 @@ export const auth = {
     accessToken = body.accessToken;
     return body.user as Me;
   },
+  /** Which social sign-in providers the API has configured. */
+  async providers(): Promise<{ google: boolean; github: boolean }> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/providers`);
+      if (!res.ok) return { google: false, github: false };
+      return (await res.json()) as { google: boolean; github: boolean };
+    } catch {
+      return { google: false, github: false };
+    }
+  },
+  /** Redeem the single-use code from the OAuth callback redirect. */
+  async exchangeOAuthCode(code: string) {
+    const res = await fetch(`${API_BASE}/auth/oauth/exchange`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new ApiError(res.status, body?.message ?? 'Social sign-in failed');
+    }
+    const body = await res.json();
+    localStorage.setItem('sf_access_token', body.accessToken);
+    localStorage.setItem('sf_refresh_token', body.refreshToken);
+    accessToken = body.accessToken;
+    return body.user as Me;
+  },
   logout() {
     const refreshToken = localStorage.getItem('sf_refresh_token');
     if (refreshToken) {

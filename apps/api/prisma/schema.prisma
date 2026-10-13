@@ -42,7 +42,7 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   name         String?
-  passwordHash String
+  passwordHash String? // null for OAuth-only accounts (Google/GitHub sign-in)
   totpSecret   String? // Phase 7: TOTP 2FA (encrypted at rest when enabled)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -52,6 +52,42 @@ model User {
   sessions          Session[]
   auditLogs         AuditLog[]
   sentInvites       OrgInvite[] @relation("Inviter")
+  oauthAccounts     OAuthAccount[]
+  oauthExchangeCodes OAuthExchangeCode[]
+}
+
+/** A linked social identity (Google/GitHub) for a user. */
+model OAuthAccount {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String // "google" | "github"
+  providerAccountId String // stable subject/id from the provider
+  email             String // email reported by the provider at link time
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+/**
+ * Single-use code handed to the browser after a successful OAuth callback;
+ * the web /auth/callback page exchanges it for a token pair. This keeps real
+ * tokens out of redirect URLs, browser history and server access logs.
+ * Stored as SHA-256 hash, 60-second TTL.
+ */
+model OAuthExchangeCode {
+  id         String    @id @default(cuid())
+  codeHash   String    @unique
+  userId     String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Organization {
