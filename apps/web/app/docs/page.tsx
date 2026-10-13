@@ -133,13 +133,26 @@ export default function DocsPage() {
             <Steps
               steps={[
                 {
+                  title: 'Prerequisite: Node.js 20+ (the only download needed)',
+                  body: 'Windows: nodejs.org LTS installer, or "winget install OpenJS.NodeJS.LTS". macOS: "brew install node" or the nodejs.org installer. Linux: "sudo apt install nodejs npm" (Ubuntu/Debian), "sudo dnf install nodejs" (Fedora), or nvm on any OS. Verify with "node -v".',
+                },
+                {
                   title: 'Install the forge CLI',
-                  code: `cd packages/cli && npm run build
+                  body: 'Once published: npm install -g @secretforge/cli. From the repo today:',
+                  code: `npm install -g @secretforge/cli   # once published
+
+# or from the repo:
+cd packages/cli && npm run build
 npm link   # or: npm i -g .`,
                 },
                 {
+                  title: 'Point the CLI at your server (only if not localhost)',
+                  body: 'Defaults to http://localhost:4000. On macOS/Linux: export SECRETFORGE_URL="https://api.your-domain.com". On Windows PowerShell: [Environment]::SetEnvironmentVariable(\'SECRETFORGE_URL\', \'https://api.your-domain.com\', \'User\').',
+                  code: `export SECRETFORGE_URL="https://api.your-domain.com"   # macOS/Linux`,
+                },
+                {
                   title: 'forge login — authenticate (once per machine)',
-                  body: 'Stores tokens in ~/.secretforge with chmod 600.',
+                  body: 'Stores tokens in ~/.secretforge (C:\\Users\\<you>\\.secretforge on Windows) with owner-only permissions.',
                   code: `forge login`,
                 },
                 {
