@@ -51,6 +51,14 @@ export class ProjectsController {
     return this.projects.addMember(projectId, user.id, actorRole, dto, ip);
   }
 
+  /** Org members who can be added to the project (share-dialog picker). */
+  @Get(':projectId/shareable-members')
+  @UseGuards(ProjectRoleGuard)
+  @MinProjectRole('ADMIN')
+  shareableMembers(@CurrentUser() user: AuthedUser, @Param('projectId') projectId: string) {
+    return this.projects.shareableOrgMembers(projectId, user.id);
+  }
+
   @Post(':projectId/members/:userId/role')
   @UseGuards(ProjectRoleGuard)
   @MinProjectRole('ADMIN')

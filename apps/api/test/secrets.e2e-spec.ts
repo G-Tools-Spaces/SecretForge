@@ -174,7 +174,7 @@ describe('Secrets (e2e)', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ value: SECRET_VALUE_V2 });
     const versions = await prisma.secretVersion.findMany({
-      where: { secret: { key: 'STRIPE_KEY' } },
+      where: { secret: { key: 'STRIPE_KEY', environmentId: envId } },
       orderBy: { version: 'asc' },
     });
     expect(versions).toHaveLength(2);
@@ -364,7 +364,7 @@ describe('Secrets (e2e)', () => {
       .get(`/audit?project=${projectId}&limit=200`)
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
-    const actions = res.body.map((e: { action: string }) => e.action);
+    const actions = res.body.entries.map((e: { action: string }) => e.action);
     expect(actions).toContain('SECRET_CREATED');
     expect(actions).toContain('SECRET_UPDATED');
     expect(actions).toContain('SECRET_REVEALED');

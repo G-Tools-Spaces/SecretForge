@@ -4,6 +4,7 @@ import { hash, verify } from '@node-rs/argon2';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EnvService } from '../config/env.service';
+import { AuditService } from '../audit/audit.service';
 import { SignupDto, LoginDto } from './dto';
 import { JwtPayload } from './jwt-payload';
 
@@ -25,6 +26,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly env: EnvService,
+    private readonly audit: AuditService,
   ) {}
 
   private hashToken(token: string): string {
@@ -70,6 +72,14 @@ export class AuthService {
     });
 
     const tokens = await this.issueTokens(user.id, user.email, 'signup', ip);
+
+    await this.audit.record({
+      action: 'USER_SIGNUP',
+      userId: user.id,
+      resource: `user/${user.id}`,
+      ip,
+    });
+
     return { ...tokens, user: { id: user.id, email: user.email, name: user.name } };
   }
 
@@ -81,10 +91,29 @@ export class AuthService {
     const ok = await verify(hash_, dto.password);
 
     if (!user || !ok) {
+      // Failed logins are audited WITHOUT a userId (the email may not exist),
+      // but the attempted identifier is kept in meta for alerting (plan:
+      // "Alert on failed logins"). Never record the password.
+      await this.audit.record({
+        action: 'USER_LOGIN_FAILED',
+        actorType: 'SYSTEM',
+        resource: `auth/login/${dto.email.toLowerCase()}`,
+        ip,
+        meta: { reason: 'invalid_credentials' },
+      });
       throw new UnauthorizedException('Invalid email or password');
     }
 
     const tokens = await this.issueTokens(user.id, user.email, 'login', ip);
+
+    await this.audit.record({
+      action: 'USER_LOGIN',
+      userId: user.id,
+      resource: `user/${user.id}`,
+      ip,
+      meta: { device: 'login' },
+    });
+
     return { ...tokens, user: { id: user.id, email: user.email, name: user.name } };
   }
 
@@ -113,10 +142,19 @@ export class AuthService {
     return this.issueTokens(session.user.id, session.user.email, session.device ?? 'refresh', ip);
   }
 
-  async logout(refreshToken: string): Promise<void> {
-    await this.prisma.session.updateMany({
+  async logout(refreshToken: string, userId?: string, ip?: string): Promise<void> {
+    const result = await this.prisma.session.updateMany({
       where: { hashedRefreshToken: this.hashToken(refreshToken), revokedAt: null },
       data: { revokedAt: new Date() },
     });
+
+    if (result.count > 0 && userId) {
+      await this.audit.record({
+        action: 'USER_LOGOUT',
+        userId,
+        resource: `user/${userId}`,
+        ip,
+      });
+    }
   }
 }

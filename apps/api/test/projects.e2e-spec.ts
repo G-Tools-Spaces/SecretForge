@@ -208,7 +208,7 @@ describe('Projects & roles (e2e)', () => {
       .get(`/audit?project=${projectId}`)
       .set('Authorization', `Bearer ${aliceToken}`);
     expect(res.status).toBe(200);
-    const actions = res.body.map((e: { action: string }) => e.action);
+    const actions = res.body.entries.map((e: { action: string }) => e.action);
     expect(actions).toContain('PROJECT_CREATED');
     expect(actions).toContain('PROJECT_MEMBER_ADDED');
     expect(actions).toContain('PROJECT_MEMBER_REMOVED');

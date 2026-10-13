@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { MIN_PROJECT_ROLE_KEY, ROLE_RANK, ProjectRole } from './project-role.decorator';
 
 /**
@@ -15,6 +16,7 @@ export class ProjectRoleGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -38,10 +40,27 @@ export class ProjectRoleGuard implements CanActivate {
 
     if (!member) {
       // Non-members get a plain 403 — don't leak whether the project exists.
+      // The attempt itself is audited (wireframe: "Denied read from unknown IP").
+      await this.audit.record({
+        action: 'ACCESS_DENIED',
+        userId,
+        projectId,
+        resource: `project/${projectId}${request.path ? request.path.replace(/^\/projects\/[^/]+/, '') : ''}`,
+        ip: request.ip,
+        meta: { reason: 'not_a_member', requiredRole },
+      });
       throw new ForbiddenException('You do not have access to this project');
     }
 
     if (ROLE_RANK[member.role] < ROLE_RANK[requiredRole]) {
+      await this.audit.record({
+        action: 'ACCESS_DENIED',
+        userId,
+        projectId,
+        resource: `project/${projectId}${request.path ? request.path.replace(/^\/projects\/[^/]+/, '') : ''}`,
+        ip: request.ip,
+        meta: { reason: 'insufficient_role', requiredRole, actualRole: member.role },
+      });
       throw new ForbiddenException(`This action requires the ${requiredRole} role`);
     }
 

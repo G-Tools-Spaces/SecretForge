@@ -36,8 +36,8 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(204)
-  logout(@Body() dto: LogoutDto) {
-    return this.auth.logout(dto.refreshToken);
+  logout(@Body() dto: LogoutDto, @CurrentUser() user?: AuthedUser, @Ip() ip?: string) {
+    return this.auth.logout(dto.refreshToken, user?.id, ip);
   }
 
   @Get('me')

@@ -18,7 +18,7 @@ SDK     ─┘        └──► Master key (env var) wraps per-project data k
 | 1 | DB schema, auth, org/project CRUD | ✅ done |
 | 2 | Secrets CRUD with encryption, versioning | ✅ done |
 | 3 | CLI (`forge login/init/set/run/pull`) | ✅ done |
-| 4 | Roles, sharing, invites, audit log UI | planned |
+| 4 | Roles, sharing, invites, audit hardening | ✅ done |
 | 5 | Web UI (Next.js, dark theme per wireframe) | planned |
 | 6 | SDKs, service tokens, CI integration | planned |
 | 7 | Hardening: 2FA, rate limits, backups, docs | planned |
@@ -70,7 +70,10 @@ POST /projects/:projectId/members           # project ADMIN only
 POST /projects/:projectId/members/:userId/role
 DEL  /projects/:projectId/members/:userId    # self-removal allowed; last-admin protected
 
-GET  /audit?project=<id>&action=<name>&limit=<n>
+GET  /projects/:projectId/shareable-members   # org members not yet in project (ADMIN)
+
+GET  /audit?project=<id>&action=<name>&since=<iso>&until=<iso>&limit=<n>&offset=<n>
+     # → { entries, total }; scoped to the caller's orgs/projects
 
 # Secrets (Phase 2) — role matrix: READ → list/reveal/export/versions,
 #                       WRITE → + upsert/import, ADMIN → + delete/rollback
@@ -89,7 +92,8 @@ POST   /projects/:projectId/envs/:env/secrets/:key/versions/:v/rollback  # ADMIN
 - **Envelope encryption**: master key (env var only) wraps a per-project data key; the data key encrypts secret values (AES-256-GCM, unique IV per write). Losing the master key loses all secrets — back it up separately.
 - **Auth**: argon2id password hashing, 15-min JWT access tokens, single-use hashed refresh tokens (replay revokes the session).
 - **Roles**: checked on every request. Org: OWNER > ADMIN > MEMBER. Project: ADMIN > WRITE > READ.
-- **Audit**: every mutation logged; secret values never appear in logs or audit meta (sanitized + enforced by tests). Reveals and exports are audited individually.
+- **Audit**: every mutation logged; secret values never appear in logs or audit meta (sanitized + enforced by tests). Reveals and exports are audited individually. Auth events (login/failed login/logout) and denied access attempts (with reason + IP) are recorded for alerting.
+- **Sharing**: project admins can share by email (target must be an org member — no cross-org sharing).
 - **Rate limits**: global 300 req/min; login 10/min; reveal 60/min; export 10/min.
 - **Versioning**: every write creates an immutable version row; rollback copies an old version forward (history is append-only).
 

@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateProjectDto {
   @IsString()
@@ -16,8 +16,14 @@ export class CreateProjectDto {
 }
 
 export class AddProjectMemberDto {
+  /** Either userId or email (sharing by email is the friendly path). */
+  @IsOptional()
   @IsString()
-  userId!: string;
+  userId?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @IsIn(['ADMIN', 'WRITE', 'READ'])
   role!: 'ADMIN' | 'WRITE' | 'READ';

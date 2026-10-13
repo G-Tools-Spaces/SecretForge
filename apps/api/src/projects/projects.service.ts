@@ -138,21 +138,39 @@ export class ProjectsService {
     });
     if (!project) throw new NotFoundException('Project not found');
 
+    // Resolve the target: userId directly, or by email (friendly sharing).
+    let targetUserId = dto.userId;
+    if (!targetUserId && dto.email) {
+      const targetUser = await this.prisma.user.findUnique({
+        where: { email: dto.email.toLowerCase() },
+        select: { id: true },
+      });
+      if (!targetUser) {
+        throw new NotFoundException(
+          `No user with email ${dto.email}. They must sign up and join the org first.`,
+        );
+      }
+      targetUserId = targetUser.id;
+    }
+    if (!targetUserId) {
+      throw new BadRequestException('Provide either userId or email');
+    }
+
     // Target must already be an org member — no cross-org sharing.
     const inOrg = await this.prisma.orgMember.findUnique({
-      where: { orgId_userId: { orgId: project.orgId, userId: dto.userId } },
+      where: { orgId_userId: { orgId: project.orgId, userId: targetUserId } },
     });
     if (!inOrg) {
       throw new BadRequestException('User must be a member of the organization first');
     }
 
     const existing = await this.prisma.projectMember.findUnique({
-      where: { projectId_userId: { projectId, userId: dto.userId } },
+      where: { projectId_userId: { projectId, userId: targetUserId } },
     });
     if (existing) throw new ConflictException('User is already a member of this project');
 
     const member = await this.prisma.projectMember.create({
-      data: { projectId, userId: dto.userId, role: dto.role },
+      data: { projectId, userId: targetUserId, role: dto.role },
       include: { user: { select: { id: true, email: true, name: true } } },
     });
 
@@ -160,12 +178,41 @@ export class ProjectsService {
       action: 'PROJECT_MEMBER_ADDED',
       userId: actorId,
       projectId,
-      resource: `project/${projectId}/member/${dto.userId}`,
+      resource: `project/${projectId}/member/${targetUserId}`,
       ip,
       meta: { role: dto.role },
     });
 
     return member;
+  }
+
+  /**
+   * Org members eligible for sharing (for the share dialog's user picker).
+   * Excludes users already in the project.
+   */
+  async shareableOrgMembers(projectId: string, userId: string) {
+    const member = await this.prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId } },
+    });
+    if (!member) throw new ForbiddenException('You do not have access to this project');
+
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { orgId: true },
+    });
+    if (!project) throw new NotFoundException('Project not found');
+
+    const existing = await this.prisma.projectMember.findMany({
+      where: { projectId },
+      select: { userId: true },
+    });
+    const existingIds = existing.map((m) => m.userId);
+
+    return this.prisma.orgMember.findMany({
+      where: { orgId: project.orgId, userId: { notIn: existingIds } },
+      include: { user: { select: { id: true, email: true, name: true } } },
+      orderBy: { joinedAt: 'asc' },
+    });
   }
 
   async updateMemberRole(
