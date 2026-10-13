@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/Icon';
 import { useUser } from '@/lib/useUser';
-import { auth, Project } from '@/lib/api';
+import { api, auth, Org, Project } from '@/lib/api';
 import s from './shell.module.css';
 
 function userInitials(name: string | null, email: string) {
@@ -36,8 +36,17 @@ function useDismiss<T extends HTMLElement>(active: boolean, onDismiss: () => voi
 export function Topbar({ project }: { project?: Project }) {
   const { user, logout } = useUser();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [orgs, setOrgs] = useState<Org[]>([]);
   const close = useCallback(() => setAccountOpen(false), []);
   const accountRef = useDismiss<HTMLDivElement>(accountOpen, close);
+
+  useEffect(() => {
+    if (user) {
+      api<Org[]>('/orgs')
+        .then(setOrgs)
+        .catch(() => {});
+    }
+  }, [user]);
 
   if (!user) return null;
 
@@ -45,11 +54,15 @@ export function Topbar({ project }: { project?: Project }) {
     <header className={s.topbar}>
       <nav aria-label="Breadcrumb" className={s.crumbs}>
         <Link href="/projects" className={s.brand}>
-          <span aria-hidden="true" className={s.brandMark}>
-            S
-          </span>
           SecretForge
         </Link>
+        {orgs.map((o) => (
+          <Link key={o.id} href={`/orgs/${o.id}`} className={s.orgChip} title={`${o.name} — manage organization`}>
+            <Icon name="building" size={12} strokeWidth={2.2} />
+            {o.name}
+            <span className={s.orgChipCount}>{o._count?.projects ?? 0}</span>
+          </Link>
+        ))}
         {project && (
           <>
             <span aria-hidden="true" className={s.slash}>
