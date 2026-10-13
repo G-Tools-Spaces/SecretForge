@@ -1,17 +1,17 @@
 /* Design tokens — Pingie design reference, adapted for SecretForge. */
 :root {
-  --bg: #202023;
-  --bg-sidebar: #222225;
-  --surface: #26262a;
-  --surface-2: #2b2b2e;
-  --surface-hover: #323237;
-  --chip: #3a3a40;
+  --bg: #000000;
+  --bg-sidebar: #0a0a0c;
+  --surface: #101013;
+  --surface-2: #16161a;
+  --surface-hover: #1d1d22;
+  --chip: #26262b;
 
-  --border: #343439;
-  --border-strong: #44444b;
-  --border-row: #2a2a2e;
-  --grid: #2e2e33;
-  --divider: #505058;
+  --border: #232329;
+  --border-strong: #33333a;
+  --border-row: #141417;
+  --grid: #1a1a1f;
+  --divider: #3a3a42;
 
   --text: #f4f4f5;
   --text-2: #d6d6da;
