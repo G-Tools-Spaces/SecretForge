@@ -12,7 +12,8 @@ const SECTIONS = [
   { id: 'getting-started', label: 'Getting started' },
   { id: 'cli', label: 'CLI' },
   { id: 'tokens', label: 'Service tokens' },
-  { id: 'sdk', label: 'SDKs' },
+  { id: 'sdk-node', label: 'Node SDK' },
+  { id: 'sdk-python', label: 'Python SDK' },
   { id: 'ci', label: 'CI integration' },
   { id: 'roles', label: 'Roles & permissions' },
   { id: 'security', label: 'Security model' },
@@ -166,10 +167,9 @@ forge import .env --env dev        # migrate an existing .env file`}</Code>
             </Note>
           </DocSection>
 
-          {/* SDKs */}
-          <DocSection id="sdk" title="SDKs (Node & Python)">
-            <Code>{`npm i @secretforge/sdk        # Node
-pip install secretforge       # Python (stdlib only, 3.9+)`}</Code>
+          {/* Node SDK */}
+          <DocSection id="sdk-node" title="Node SDK">
+            <Code>{`npm i @secretforge/sdk`}</Code>
             <Code>{`import { config, load } from '@secretforge/sdk';
 
 // Fetch secrets at boot and merge into process.env.
@@ -178,14 +178,29 @@ await config();   // uses SECRETFORGE_TOKEN + .secretforge.json
 
 // Or get a plain object without touching process.env:
 const values = await load({ env: 'prod' });`}</Code>
-            <Code>{`import secretforge
-
-secretforge.config()   # merges into os.environ; real env vars win
-values = secretforge.load(env="prod")  # plain dict`}</Code>
             <Note>
               Options: <span className="mono">projectId</span>, <span className="mono">env</span>,{' '}
               <span className="mono">token</span>, <span className="mono">url</span> — all optional when the
               env vars / link file are present.
+            </Note>
+          </DocSection>
+
+          {/* Python SDK */}
+          <DocSection id="sdk-python" title="Python SDK">
+            <Code>{`pip install secretforge   # stdlib only, Python 3.9+`}</Code>
+            <Code>{`import secretforge
+
+# Fetch secrets at boot and merge into os.environ.
+# Real environment variables always win over the vault.
+secretforge.config()   # uses SECRETFORGE_TOKEN + .secretforge.json
+
+# Or get a plain dict without touching os.environ:
+values = secretforge.load(env="prod")`}</Code>
+            <Note>
+              Options: <span className="mono">project_id</span>, <span className="mono">env</span>,{' '}
+              <span className="mono">token</span>, <span className="mono">url</span> — all optional when the
+              env vars / link file are present. Errors raise{' '}
+              <span className="mono">secretforge.ForgeError</span> with the HTTP status.
             </Note>
           </DocSection>
 
