@@ -133,8 +133,21 @@ export default function DocsPage() {
             <Steps
               steps={[
                 {
-                  title: 'Prerequisite: Node.js 20+ (the only download needed)',
-                  body: 'Windows: nodejs.org LTS installer, or "winget install OpenJS.NodeJS.LTS". macOS: "brew install node" or the nodejs.org installer. Linux: "sudo apt install nodejs npm" (Ubuntu/Debian), "sudo dnf install nodejs" (Fedora), or nvm on any OS. Verify with "node -v".',
+                  title: 'Prerequisite: Node.js 20+ — Windows',
+                  body: 'The only download the forge CLI needs. Verify any install with: node -v (should print v20.x or newer).',
+                  code: `winget install OpenJS.NodeJS.LTS
+# or: download the LTS installer from https://nodejs.org`,
+                },
+                {
+                  title: 'Prerequisite: Node.js 20+ — macOS',
+                  code: `brew install node
+# or: download the LTS installer from https://nodejs.org`,
+                },
+                {
+                  title: 'Prerequisite: Node.js 20+ — Linux',
+                  code: `sudo apt install nodejs npm     # Ubuntu/Debian
+sudo dnf install nodejs         # Fedora/RHEL
+nvm install 20 && nvm use 20    # any OS via nvm`,
                 },
                 {
                   title: 'Install the forge CLI',
