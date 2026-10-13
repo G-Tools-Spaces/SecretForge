@@ -17,7 +17,7 @@ SDK     ─┘        └──► Master key (env var) wraps per-project data k
 |---|---|---|
 | 1 | DB schema, auth, org/project CRUD | ✅ done |
 | 2 | Secrets CRUD with encryption, versioning | ✅ done |
-| 3 | CLI (`forge login/init/set/run/pull`) | planned |
+| 3 | CLI (`forge login/init/set/run/pull`) | ✅ done |
 | 4 | Roles, sharing, invites, audit log UI | planned |
 | 5 | Web UI (Next.js, dark theme per wireframe) | planned |
 | 6 | SDKs, service tokens, CI integration | planned |
@@ -93,11 +93,38 @@ POST   /projects/:projectId/envs/:env/secrets/:key/versions/:v/rollback  # ADMIN
 - **Rate limits**: global 300 req/min; login 10/min; reveal 60/min; export 10/min.
 - **Versioning**: every write creates an immutable version row; rollback copies an old version forward (history is append-only).
 
+## The `forge` CLI (Phase 3)
+
+```bash
+cd packages/cli && npm run build
+node packages/cli/dist/index.js --help   # or: npm i -g . && forge --help
+```
+
+```bash
+forge login                          # stores tokens in ~/.secretforge (chmod 600)
+forge whoami
+forge init                           # interactive picker → writes .secretforge.json
+forge set API_KEY=abc123 --env dev   # prompts hidden if value omitted
+forge list --env dev                 # keys + versions only, never values
+forge run --env dev -- npm run dev   # injects secrets into the child process env
+forge pull --env dev --stdout        # escape hatch: print .env format
+forge import .env --env dev          # migration helper: push an existing .env
+forge logout
+```
+
+- `.secretforge.json` (project ID + default env only) is safe to commit.
+- `forge run` fetches decrypted secrets over HTTPS and merges them into the
+  child's environment — nothing is written to disk, and secrets override any
+  stale local values.
+- Env resolution: `--env` flag > `SECRETFORGE_ENV` > project default > `dev`.
+- API URL: `SECRETFORGE_URL` env var (default `http://localhost:4000`).
+- CI/servers: set `SECRETFORGE_TOKEN=sf_...` (service tokens, Phase 6).
+
 ## Repo layout
 
 ```
 apps/api          NestJS REST API + Prisma schema + tests
-packages/cli      forge CLI (Phase 3)
+packages/cli      forge CLI (login/init/set/list/run/pull/import)
 packages/sdk-node (Phase 6)
 packages/sdk-python (Phase 6)
 deploy/Caddyfile  HTTPS reverse proxy config
