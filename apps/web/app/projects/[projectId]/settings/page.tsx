@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api, Project } from '@/lib/api';
+import { envLabel } from '@/lib/format';
 import { useUser } from '@/lib/useUser';
 import { ProjectShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
@@ -178,7 +179,7 @@ export default function SettingsPage() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: isAdmin ? 14 : 0 }}>
               {project.environments.map((e) => (
                 <span key={e.id} className="badge badge-accent" style={{ fontSize: 12, padding: '4px 10px' }}>
-                  {e.name}
+                  {envLabel(e.name)}
                 </span>
               ))}
             </div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api, Project, SecretRow } from '@/lib/api';
+import { envLabel } from '@/lib/format';
 import { useUser } from '@/lib/useUser';
 import { ProjectShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
@@ -196,7 +197,7 @@ export default function SecretsPage() {
                 setRevealed({});
               }}
             >
-              {e.name}
+              {envLabel(e.name)}
             </button>
           ))}
         </div>
@@ -207,7 +208,7 @@ export default function SecretsPage() {
         {!busy && !error && secrets.length === 0 && (
           <div className="panel">
             <div className="empty" style={{ padding: '56px 18px' }}>
-              <h2 style={{ margin: '0 0 6px', fontSize: 16, color: 'var(--text)' }}>No secrets in {env}</h2>
+              <h2 style={{ margin: '0 0 6px', fontSize: 16, color: 'var(--text)' }}>No secrets in {envLabel(env)}</h2>
               <p style={{ margin: '0 0 16px' }}>
                 {canWrite
                   ? 'Add a secret or paste your existing .env file to import.'
@@ -291,7 +292,7 @@ export default function SecretsPage() {
 
       {showAdd && (
         <Modal
-          title={`Add secret to ${env}`}
+          title={`Add secret to ${envLabel(env)}`}
           onClose={() => setShowAdd(false)}
           footer={
             <>
@@ -330,7 +331,7 @@ export default function SecretsPage() {
 
       {showImport && (
         <Modal
-          title={`Import .env into ${env}`}
+          title={`Import .env into ${envLabel(env)}`}
           onClose={() => setShowImport(false)}
           footer={
             <>

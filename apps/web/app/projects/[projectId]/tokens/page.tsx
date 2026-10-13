@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api, CreatedToken, Project, ServiceTokenInfo } from '@/lib/api';
+import { envLabel } from '@/lib/format';
 import { useUser } from '@/lib/useUser';
 import { ProjectShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
@@ -167,7 +168,7 @@ export default function TokensPage() {
                     <tr key={t.id}>
                       <td style={{ fontWeight: 600, color: 'var(--text)' }}>{t.name}</td>
                       <td>
-                        <span className="badge badge-accent">{t.environment}</span>
+                        <span className="badge badge-accent">{envLabel(t.environment)}</span>
                       </td>
                       <td className="mono muted" style={{ fontSize: 12 }}>
                         {t.prefix ? `${t.prefix}…` : '—'}
@@ -248,7 +249,7 @@ export default function TokensPage() {
             <select id="token-env" className="select" value={env} onChange={(e) => setEnv(e.target.value)}>
               {project.environments.map((e) => (
                 <option key={e.id} value={e.name}>
-                  {e.name}
+                  {envLabel(e.name)}
                 </option>
               ))}
             </select>

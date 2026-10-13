@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api, Project, SecretRow } from '@/lib/api';
+import { envLabel } from '@/lib/format';
 import { useUser } from '@/lib/useUser';
 import { ProjectShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
@@ -146,7 +147,7 @@ export default function VersionsPage() {
                 setVersions([]);
               }}
             >
-              {e.name}
+              {envLabel(e.name)}
             </button>
           ))}
         </div>
@@ -164,13 +165,13 @@ export default function VersionsPage() {
           {/* Secret keys */}
           <section className="panel">
             <div className="panel-header">
-              <h2>Secrets in {env}</h2>
+              <h2>Secrets in {envLabel(env)}</h2>
               <span className="hint" style={{ marginLeft: 'auto' }}>
                 {secrets.length}
               </span>
             </div>
             <div>
-              {secrets.length === 0 && <div className="empty">No secrets in {env} yet.</div>}
+              {secrets.length === 0 && <div className="empty">No secrets in {envLabel(env)} yet.</div>}
               {secrets.map((s) => (
                 <div
                   key={s.id}

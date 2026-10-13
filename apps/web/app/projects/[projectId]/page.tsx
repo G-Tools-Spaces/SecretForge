@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api, AuditEntry, Project, SecretRow } from '@/lib/api';
+import { envLabel } from '@/lib/format';
 import { useUser } from '@/lib/useUser';
 import { ProjectShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
@@ -138,7 +139,7 @@ export default function OverviewPage() {
                             fontSize: 13,
                           }}
                         >
-                          <span style={{ textTransform: 'capitalize', color: 'var(--text-2)' }}>{e.name}</span>
+                          <span style={{ color: 'var(--text-2)' }}>{envLabel(e.name)}</span>
                           <span style={{ color: 'var(--text-3)', fontSize: 12 }}>
                             {count} secret{count === 1 ? '' : 's'} · {pct}%
                           </span>

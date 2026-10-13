@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, Org, Project } from '@/lib/api';
+import { envLabel } from '@/lib/format';
 import { useUser } from '@/lib/useUser';
 import { OrgShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
@@ -189,7 +190,7 @@ export default function ProjectsPage() {
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '12px 18px' }}>
                   {p.environments.map((e) => (
                     <span key={e.id} className="badge">
-                      {e.name}
+                      {envLabel(e.name)}
                     </span>
                   ))}
                 </div>
