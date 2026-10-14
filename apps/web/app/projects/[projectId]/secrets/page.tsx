@@ -287,21 +287,41 @@ export default function SecretsPage() {
         </div>
 
         {named.length > 0 && (
-          <div className="segmented" style={{ marginTop: 8 }} aria-label="Groups">
-            {named.map((g) => (
-              <button key={g} aria-pressed={group === g} onClick={() => setGroup(g)}>
-                {g}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {group !== ALL && (
-          <div style={{ marginTop: 8 }}>
-            <button className="btn btn-sm" onClick={() => setGroup(ALL)}>
-              ← Back to ungrouped
+          <nav aria-label="Groups" style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+            <button
+              onClick={() => setGroup(ALL)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                fontSize: 13,
+                color: group === ALL ? 'var(--text)' : 'var(--text-3)',
+                fontWeight: group === ALL ? 600 : 400,
+              }}
+            >
+              ungrouped
             </button>
-          </div>
+            {named.map((g) => (
+              <span key={g} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: 'var(--text-4)' }}>/</span>
+                <button
+                  onClick={() => setGroup(g)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    color: group === g ? 'var(--text)' : 'var(--text-3)',
+                    fontWeight: group === g ? 600 : 400,
+                  }}
+                >
+                  {g}
+                </button>
+              </span>
+            ))}
+          </nav>
         )}
 
         {error && <ErrorState message={error} onRetry={load} />}
