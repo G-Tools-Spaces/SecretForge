@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { api, groupQuery, refLabel, Project, SecretRef, SecretRow } from '@/lib/api';
 import { envLabel } from '@/lib/format';
 import { useUser } from '@/lib/useUser';
@@ -24,6 +24,7 @@ interface VersionRow {
 export default function VersionsPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading } = useUser();
   const toast = useToast();
   const confirm = useConfirm();
@@ -67,6 +68,16 @@ export default function VersionsPage() {
   useEffect(() => {
     if (user) load();
   }, [user, load]);
+
+  // Deep-link: ?key=FOO&group=backend pre-selects a secret.
+  useEffect(() => {
+    const key = searchParams.get('key');
+    const group = searchParams.get('group') ?? '';
+    if (key && secrets.length > 0) {
+      const match = secrets.find((s) => s.key === key && s.group === group);
+      if (match) setSelected({ group: match.group, key: match.key });
+    }
+  }, [searchParams, secrets]);
 
   const loadVersions = useCallback(
     async ({ group, key }: SecretRef) => {

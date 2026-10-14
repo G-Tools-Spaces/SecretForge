@@ -355,7 +355,7 @@ export default function SecretsPage() {
         {view === 'groups' && group !== ALL && (
           <div style={{ marginTop: 8 }}>
             <button className="btn btn-sm" onClick={() => setGroup(ALL)}>
-              ← Back to groups
+              ← Back to Groups
             </button>
           </div>
         )}
@@ -436,6 +436,13 @@ export default function SecretsPage() {
                           <Icon name="eyeOff" size={13} /> Hide
                         </button>
                       )}
+                      <a
+                        className="btn btn-sm"
+                        style={{ marginLeft: 6, textDecoration: 'none' }}
+                        href={`/projects/${projectId}/versions?key=${encodeURIComponent(s.key)}&group=${encodeURIComponent(s.group)}`}
+                      >
+                        <Icon name="refresh" size={13} /> History
+                      </a>
                       {canAdmin && (
                         <button
                           className="btn btn-danger btn-sm"
