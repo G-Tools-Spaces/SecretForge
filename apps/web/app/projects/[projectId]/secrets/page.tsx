@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api, groupQuery, Project, SecretRow } from '@/lib/api';
 import { envLabel } from '@/lib/format';
@@ -303,7 +303,7 @@ export default function SecretsPage() {
               ungrouped
             </button>
             {named.map((g) => (
-              <span key={g} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Fragment key={g}>
                 <span style={{ color: 'var(--text-4)' }}>/</span>
                 <button
                   onClick={() => setGroup(g)}
@@ -319,7 +319,7 @@ export default function SecretsPage() {
                 >
                   {g}
                 </button>
-              </span>
+              </Fragment>
             ))}
           </nav>
         )}
