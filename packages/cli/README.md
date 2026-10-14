@@ -19,6 +19,9 @@ Requires Node.js 20+. Two commands are installed: `forge` and `secretforge`
 export SECRETFORGE_URL="https://your-api.example.com"
 # Windows PowerShell:
 # [Environment]::SetEnvironmentVariable('SECRETFORGE_URL', 'https://your-api.example.com', 'User')
+#
+# ⚠️ SECRETFORGE_URL = the API URL (https://...).
+#    Service tokens (sf_...) go in SECRETFORGE_TOKEN — never in SECRETFORGE_URL.
 
 # 2. Log in (once per machine; tokens stored in ~/.secretforge)
 forge login

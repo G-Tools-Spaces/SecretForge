@@ -46,6 +46,9 @@ export default function IntegratePage() {
   const cli = `# Install the CLI (Node.js 20+ required)
 npm install -g @gtools-spaces/cli
 
+# Point it at your server (only if not http://localhost:4000)
+export SECRETFORGE_URL="https://secretforge-api.onrender.com"
+
 # Link this repo to the project
 forge init
 
@@ -73,6 +76,9 @@ secretforge.config()  # uses SECRETFORGE_TOKEN + .secretforge.json`;
 
   const ci = `# 1. Create a token: Tokens tab → New token (pick the env)
 # 2. Store it as a CI secret named SECRETFORGE_TOKEN
+
+# ⚠️ SECRETFORGE_URL = API URL (https://...) — SECRETFORGE_TOKEN = service token (sf_...)
+#    Don't mix these up; the CLI will refuse a sf_... value in SECRETFORGE_URL.
 
 # GitHub Actions
 - name: Tests with vault secrets

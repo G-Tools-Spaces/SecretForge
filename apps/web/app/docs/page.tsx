@@ -160,8 +160,12 @@ npm link   # or: npm i -g .`,
                 },
                 {
                   title: 'Point the CLI at your server (only if not localhost)',
-                  body: 'Defaults to http://localhost:4000. On macOS/Linux: export SECRETFORGE_URL="https://api.your-domain.com". On Windows PowerShell: [Environment]::SetEnvironmentVariable(\'SECRETFORGE_URL\', \'https://api.your-domain.com\', \'User\').',
-                  code: `export SECRETFORGE_URL="https://api.your-domain.com"   # macOS/Linux`,
+                  body: 'Defaults to http://localhost:4000. On macOS/Linux: export SECRETFORGE_URL="https://api.your-domain.com". On Windows PowerShell: [Environment]::SetEnvironmentVariable(\'SECRETFORGE_URL\', \'https://api.your-domain.com\', \'User\'). Important: SECRETFORGE_URL holds the API URL — service tokens (sf_...) go in SECRETFORGE_TOKEN, never in SECRETFORGE_URL.',
+                  code: `export SECRETFORGE_URL="https://api.your-domain.com"   # macOS/Linux
+
+# ⚠️ Don't mix these up:
+#   SECRETFORGE_URL   = the API URL (https://...)
+#   SECRETFORGE_TOKEN = a service token (sf_...)`,
                 },
                 {
                   title: 'forge login — authenticate (once per machine)',

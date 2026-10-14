@@ -314,6 +314,14 @@ export SECRETFORGE_URL="https://api.your-domain.com"
 [Environment]::SetEnvironmentVariable('SECRETFORGE_URL', 'https://api.your-domain.com', 'User')
 ```
 
+> ⚠️ Don't mix up the two env vars:
+>
+> - `SECRETFORGE_URL` — the **API URL** (`https://…`)
+> - `SECRETFORGE_TOKEN` — a **service token** (`sf_…`)
+>
+> The CLI refuses an `sf_…` value in `SECRETFORGE_URL` with a clear error
+> (since 0.1.1) — tokens never go there.
+
 ```bash
 forge login                         # email + password (or service token)
 forge whoami                        # verify you're authenticated
