@@ -31,14 +31,7 @@ export default function SecretsPage() {
   const [showImport, setShowImport] = useState(false);
   const [group, setGroup] = useState<string>(ALL); // ALL | '' (ungrouped) | group name
   // Empty groups created in the UI — persisted to localStorage so they survive reloads.
-  const [extraGroups, setExtraGroups] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      return JSON.parse(localStorage.getItem(`sf-groups-${projectId}-${env}`) ?? '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [extraGroups, setExtraGroups] = useState<string[]>([]);
   const [newGroup, setNewGroup] = useState('');
   const [showGroup, setShowGroup] = useState(false);
   const [groupDraft, setGroupDraft] = useState('');
@@ -50,6 +43,16 @@ export default function SecretsPage() {
   useEffect(() => {
     if (!loading && !user) router.push('/login');
   }, [loading, user, router]);
+
+  // Load persisted empty groups for this project+env on mount / env change.
+  useEffect(() => {
+    if (!projectId) return;
+    try {
+      setExtraGroups(JSON.parse(localStorage.getItem(`sf-groups-${projectId}-${env}`) ?? '[]'));
+    } catch {
+      setExtraGroups([]);
+    }
+  }, [projectId, env]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -277,11 +280,6 @@ export default function SecretsPage() {
                   setEnv(e.name);
                   setGroup(ALL);
                   setRevealed({});
-                  try {
-                    setExtraGroups(JSON.parse(localStorage.getItem(`sf-groups-${projectId}-${e.name}`) ?? '[]'));
-                  } catch {
-                    setExtraGroups([]);
-                  }
                 }}
               >
                 {envLabel(e.name)}
