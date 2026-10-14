@@ -12,6 +12,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** True when the API demands a TOTP code (2FA enabled on the account). */
+    public totpRequired?: boolean,
   ) {
     super(message);
   }
@@ -31,19 +33,22 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
+/**
+ * Refresh the access token. The REFRESH token lives in an httpOnly
+ * SameSite=Strict cookie set by the API (review M5) — JavaScript (and
+ * therefore XSS) can never read it. `credentials: 'include'` isn't needed
+ * for same-origin /api/* proxy requests; cookies ride along automatically.
+ */
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem('sf_refresh_token');
-  if (!refreshToken) return null;
   try {
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ refreshToken: 'cookie' }),
     });
     if (!res.ok) return null;
     const body = await res.json();
     localStorage.setItem('sf_access_token', body.accessToken);
-    localStorage.setItem('sf_refresh_token', body.refreshToken);
     accessToken = body.accessToken;
     return body.accessToken;
   } catch {
@@ -194,19 +199,19 @@ export interface AuditEntry {
 }
 
 export const auth = {
-  async login(email: string, password: string) {
+  async login(email: string, password: string, totpCode?: string) {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, ...(totpCode ? { totpCode } : {}) }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      throw new ApiError(res.status, body?.message ?? 'Login failed');
+      throw new ApiError(res.status, body?.message ?? 'Login failed', body?.totp_required === true);
     }
     const body = await res.json();
+    // Refresh token is set as an httpOnly cookie by the API (M5) — never here.
     localStorage.setItem('sf_access_token', body.accessToken);
-    localStorage.setItem('sf_refresh_token', body.refreshToken);
     accessToken = body.accessToken;
     return body.user as Me;
   },
@@ -222,7 +227,6 @@ export const auth = {
     }
     const body = await res.json();
     localStorage.setItem('sf_access_token', body.accessToken);
-    localStorage.setItem('sf_refresh_token', body.refreshToken);
     accessToken = body.accessToken;
     return body.user as Me;
   },
@@ -249,21 +253,18 @@ export const auth = {
     }
     const body = await res.json();
     localStorage.setItem('sf_access_token', body.accessToken);
-    localStorage.setItem('sf_refresh_token', body.refreshToken);
     accessToken = body.accessToken;
     return body.user as Me;
   },
   logout() {
-    const refreshToken = localStorage.getItem('sf_refresh_token');
-    if (refreshToken) {
-      fetch(`${API_BASE}/auth/logout`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      }).catch(() => {});
-    }
+    // The httpOnly refresh cookie rides along; the API clears it.
+    fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ refreshToken: 'cookie' }),
+    }).catch(() => {});
     localStorage.removeItem('sf_access_token');
-    localStorage.removeItem('sf_refresh_token');
+    localStorage.removeItem('sf_refresh_token'); // legacy cleanup
     accessToken = null;
   },
 };

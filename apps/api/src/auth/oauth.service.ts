@@ -33,7 +33,9 @@ const EXCHANGE_CODE_TTL_MS = 60 * 1000;
  *   browser → POST /auth/oauth/exchange       → real access+refresh tokens
  *
  * Security notes:
- *  - `state` is a single-use random value with a 10-minute TTL (login CSRF).
+ *  - `state` is a single-use random value with a 10-minute TTL (login CSRF),
+ *    persisted in the DB (review M2) so the flow survives restarts and works
+ *    across multiple API instances.
  *  - Emails are only trusted when the provider marks them verified.
  *  - Exchange codes are stored as SHA-256 hashes, single-use, 60-second TTL,
  *    so real tokens never appear in URLs, history or access logs.
@@ -41,9 +43,6 @@ const EXCHANGE_CODE_TTL_MS = 60 * 1000;
  */
 @Injectable()
 export class OAuthService {
-  /** state → { expiresAt, next } — in-memory is fine for a single-instance deployment. */
-  private readonly states = new Map<string, { expiresAt: number; next?: string }>();
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly env: EnvService,
@@ -59,11 +58,16 @@ export class OAuthService {
     return `${this.env.apiPublicUrl}/auth/${provider}/callback`;
   }
 
-  /** Build the provider consent-screen URL and remember the state. */
-  authorizeUrl(provider: OAuthProvider, next?: string): string {
-    const state = randomBytes(16).toString('hex');
-    this.states.set(state, { expiresAt: Date.now() + STATE_TTL_MS, next });
-    this.sweepStates();
+  /** Build the provider consent-screen URL and remember the state (DB-backed). */
+  async authorizeUrl(provider: OAuthProvider, next?: string): Promise<string> {
+    const state = randomBytes(24).toString('hex');
+    await this.prisma.oAuthState.create({
+      data: { state, next, expiresAt: new Date(Date.now() + STATE_TTL_MS) },
+    });
+    // Opportunistic cleanup of expired states (cheap, indexed on expiresAt).
+    await this.prisma.oAuthState
+      .deleteMany({ where: { expiresAt: { lt: new Date() } } })
+      .catch(() => {});
 
     const params = new URLSearchParams({
       client_id: provider === 'google' ? this.env.googleClientId : this.env.githubClientId,
@@ -81,21 +85,19 @@ export class OAuthService {
     return `https://github.com/login/oauth/authorize?${params}`;
   }
 
-  /** Validate + consume a state value (single-use). Returns the stored `next`. */
-  consumeState(state: string): { next?: string } {
-    const entry = this.states.get(state);
-    this.states.delete(state);
-    if (!entry || entry.expiresAt < Date.now()) {
+  /** Validate + consume a state value (single-use, DB-backed). Returns the stored `next`. */
+  async consumeState(state: string): Promise<{ next?: string }> {
+    // Read + delete in one transaction = atomic single-use consumption.
+    const row = await this.prisma.$transaction(async (tx) => {
+      const found = await tx.oAuthState.findUnique({ where: { state } });
+      if (!found) return null;
+      await tx.oAuthState.delete({ where: { id: found.id } });
+      return found;
+    });
+    if (!row || row.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException('Invalid or expired OAuth state — please try signing in again');
     }
-    return { next: entry.next };
-  }
-
-  private sweepStates() {
-    const now = Date.now();
-    for (const [key, value] of this.states) {
-      if (value.expiresAt < now) this.states.delete(key);
-    }
+    return { next: row.next ?? undefined };
   }
 
   /** Exchange the provider code for a profile, find/create the user, issue an exchange code. */

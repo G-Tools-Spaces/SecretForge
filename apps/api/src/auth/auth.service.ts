@@ -7,6 +7,7 @@ import { EnvService } from '../config/env.service';
 import { AuditService } from '../audit/audit.service';
 import { SignupDto, LoginDto, ChangePasswordDto } from './dto';
 import { JwtPayload } from './jwt-payload';
+import { TotpService } from './totp.service';
 
 export interface TokenPair {
   accessToken: string;
@@ -27,6 +28,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly env: EnvService,
     private readonly audit: AuditService,
+    private readonly totp: TotpService,
   ) {}
 
   private hashToken(token: string): string {
@@ -103,6 +105,32 @@ export class AuthService {
         meta: { reason: 'invalid_credentials' },
       });
       throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // 2FA (review M4): password alone is NOT enough when TOTP is enabled.
+    // Respond with a machine-readable flag — never any tokens — until the
+    // client re-submits with a valid authenticator code.
+    if (user.totpEnabled) {
+      if (!dto.totpCode) {
+        throw new UnauthorizedException({
+          message: 'Two-factor code required',
+          totp_required: true,
+        });
+      }
+      const codeOk = await this.totp.verifyLogin(user.id, dto.totpCode);
+      if (!codeOk) {
+        await this.audit.record({
+          action: 'USER_LOGIN_FAILED',
+          userId: user.id,
+          resource: `auth/login/${user.email}`,
+          ip,
+          meta: { reason: 'invalid_totp' },
+        });
+        throw new UnauthorizedException({
+          message: 'Invalid two-factor code',
+          totp_required: true,
+        });
+      }
     }
 
     const tokens = await this.issueTokens(user.id, user.email, 'login', ip);

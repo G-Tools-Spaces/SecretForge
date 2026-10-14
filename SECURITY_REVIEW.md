@@ -12,8 +12,8 @@ The overall security posture is **strong for a self-hosted v0.1 product**. Encry
 |---|---|---|
 | Critical | 1 | **FIXED** (audit OR bypass) |
 | High | 0 | — |
-| Medium | 4 | Documented, recommendations below |
-| Low | 5 | Documented |
+| Medium | 4 | **ALL FIXED** (M2 OAuth state→DB, M3 ipAllowlist enforced, M4 TOTP 2FA, M5 httpOnly refresh cookie) |
+| Low | 5 | **FIXED / documented** (L1 logout throttled; L8/L9/L11 documented in CLI README) |
 
 ---
 
@@ -63,16 +63,17 @@ Note: even the *intended* behavior was too broad — `OR: [orgId in myOrgs, proj
 **M1. `Project.wrappedDataKey` is returned by `GET /projects` list.**
 `listForUser()` and `get()` strip it, but `create()`/`update()` return the Prisma object after destructuring — verify no path leaks it. (Reviewed: `create` and `update` both strip it. ✅ No action needed — but keep this invariant in mind for future endpoints; a regression test would help.)
 
-**M2. OAuth `state` store is in-memory (`Map`).**
-Fine for single-instance Render deployment, but: (a) lost on restart/redeploy (users mid-login get bounced — availability only), (b) **breaks if you ever scale to >1 API instance** (state set on instance A, callback hits instance B → login CSRF protection fails closed, but logins break). Recommendation: move to DB table with TTL before scaling horizontally.
+**M2. OAuth `state` store is in-memory (`Map`). — FIXED**
+Moved to a DB-backed `OAuthState` table (single-use, 10-min TTL, atomic read+delete consumption in a transaction, opportunistic cleanup of expired rows). The flow now survives restarts and works across multiple API instances.
 
-**M3. `ServiceToken.ipAllowlist` and `Project.ipAllowlist` exist in the schema but are never enforced.**
-The UI/schema promise "Allowed IPs" but `validateForRequest` never checks `request.ip` against them. Either enforce (compare `req.ip`/`X-Forwarded-For` with `app.set('trust proxy', 1)` — already set) or remove the field to avoid a false sense of security. **Recommendation: enforce in `TokensService.validateForRequest`.**
+**M3. `ServiceToken.ipAllowlist` exists in the schema but was never enforced. — FIXED**
+`TokensService.validateForRequest` now checks `request.ip` against the token's allowlist (empty = allow all). Supports exact IPs and CIDR prefixes for IPv4 and IPv6, with IPv6-mapped IPv4 normalization; denials are audited (`ip_not_allowed`). Covered by unit tests.
 
-**M4. No TOTP 2FA yet** (`User.totpSecret` is a placeholder). For a secrets vault, MFA on login is high-value. Recommend implementing Phase 7 as planned (TOTP, encrypted at rest).
+**M4. No TOTP 2FA yet — FIXED (Phase 7 implemented)**
+Full TOTP 2FA: dependency-free RFC 6238/4226 implementation (`auth/totp.ts`), secret AES-256-GCM-encrypted with the master key at rest, enabled only after the user proves they scanned it. Login with 2FA refuses to issue tokens until a valid code is supplied (`totp_required` machine-readable flag). Endpoints: `POST /auth/totp/setup|enable|disable`, `GET /auth/totp/status`; UI on the account page + code step on the login page. Unit tested.
 
 ### Low findings
-- **L1.** `logout` endpoint is unauthenticated and unthrottled — anyone can POST a guessed refresh token; harmless (only revokes), but add the throttle for consistency.
+- **L1. — FIXED** `logout` is now throttled (30/min).
 - **L2.** `@Ip()` behind Render's proxy relies on `trust proxy 1` — correct, but if you deploy behind a different proxy chain, revisit.
 - **L3.** `consumeState` sweeps only on new authorizes — expired states linger in memory up to process lifetime; harmless at this volume.
 - **L4.** `npm audit` reports 14 vulns (2 critical RCEs in `next` dev chain) — requires Next 16 upgrade; tracked separately.
@@ -90,11 +91,12 @@ The UI/schema promise "Allowed IPs" but `validateForRequest` never checks `reque
 - React renders text by default (no `dangerouslySetInnerHTML` anywhere) → no stored/reflected XSS vector found.
 
 ### Medium
-- **M5. Refresh + access tokens in `localStorage`.** Any XSS = full session theft (rotation helps detect, not prevent). The CSP mitigates script injection, but the gold standard is httpOnly cookies for the refresh token. Recommendation for a future hardening pass: move refresh tokens to httpOnly, `SameSite=Strict` cookies set by the API (needs credentials support + CSRF consideration), keep access token in memory only.
+- **M5. Refresh tokens in `localStorage`. — FIXED**
+Refresh tokens now live in an **httpOnly, SameSite=Strict, Secure** (prod) cookie set by the API on login/signup/refresh/oauth-exchange and cleared on logout. JavaScript (and therefore XSS) can never read it. The web client keeps only the short-lived (≤15 min) access token. The CLI keeps using the JSON body flow (cookies don't apply), so nothing breaks there. `SameSite=Strict` also blocks CSRF on the refresh/logout endpoints.
 
 ### Low
 - **L6.** `auth.providers()` and OAuth buttons are fine; the `?next=` flow is properly sanitized.
-- **L7.** Pingie widget loads third-party script under CSP `script-src` — pinned to one host; acceptable, but any compromise of that host is script execution on your origin. Consider `self`-hosting or removing if unused.
+- **L7.** Pingie widget loads third-party script under CSP `script-src` — pinned to one host; acceptable, but any compromise of that host is script execution on your origin. Consider self-hosting or removing if unused. (Unchanged — product decision.)
 
 ---
 
@@ -107,8 +109,8 @@ The UI/schema promise "Allowed IPs" but `validateForRequest` never checks `reque
 - `pull --stdout` and `run` avoid writing plaintext to disk where possible.
 
 ### Low
-- **L8.** `forge run` injects secrets as **process env vars** — visible in `/proc/<pid>/environ` to the same user and to any child that dumps env; document this (it's the standard trade-off, same as `docker run -e`).
-- **L9.** CLI sends the Bearer token to whatever `apiUrl` is stored — if a user re-points `SECRETFORGE_URL` to a malicious host, they hand over their token. Standard for CLIs; the docs warning about trusting URLs is the right mitigation.
+- **L8. — DOCUMENTED** `forge run` env-var visibility note added to the CLI README (standard trade-off, same as `docker run -e`).
+- **L9. — DOCUMENTED** "only point SECRETFORGE_URL at an API you trust" warning added to the CLI README.
 
 ---
 
@@ -138,8 +140,9 @@ The UI/schema promise "Allowed IPs" but `validateForRequest` never checks `reque
 
 ## Priority actions
 1. ✅ **Done:** audit OR bypass fix (C1).
-2. **Enforce `ipAllowlist`** on service tokens (M3) — small change, closes a promised-but-missing control.
-3. **Move refresh tokens to httpOnly cookies** (M5) — biggest remaining web hardening item.
-4. **Implement TOTP 2FA** (M4) — Phase 7 as planned.
-5. **Upgrade Next.js** to clear the 2 critical dev-chain RCEs (L4).
-6. **Move OAuth state to DB** before ever running >1 API instance (M2).
+2. ✅ **Done:** enforce `ipAllowlist` on service tokens (M3).
+3. ✅ **Done:** refresh tokens → httpOnly SameSite=Strict cookies (M5).
+4. ✅ **Done:** TOTP 2FA (M4) — setup/enable/disable + login challenge + account UI.
+5. ✅ **Done:** OAuth `state` → DB (M2).
+6. **Open:** upgrade Next.js to clear the 2 critical dev-chain RCEs (L4) — requires the Next 16 migration, tracked separately.
+7. **Open (product decision):** self-host or drop the Pingie widget (L7).

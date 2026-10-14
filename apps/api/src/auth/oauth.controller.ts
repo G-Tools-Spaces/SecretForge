@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Ip, NotFoundException, Param, Post, Query, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
+import { setRefreshCookie } from './cookies';
 import { EnvService } from '../config/env.service';
 import { OAuthService, OAuthProvider } from './oauth.service';
 import { OAuthExchangeDto } from './dto';
@@ -29,9 +30,9 @@ export class OAuthController {
   }
 
   @Get(':provider(google|github)')
-  authorize(@Param('provider') provider: OAuthProvider, @Query('next') next: string | undefined, @Res() res: Response) {
+  async authorize(@Param('provider') provider: OAuthProvider, @Query('next') next: string | undefined, @Res() res: Response) {
     if (!this.oauth.isEnabled(provider)) throw new NotFoundException('This sign-in provider is not configured');
-    res.redirect(this.oauth.authorizeUrl(provider, safeNext(next)));
+    res.redirect(await this.oauth.authorizeUrl(provider, safeNext(next)));
   }
 
   @Get(':provider(google|github)/callback')
@@ -50,7 +51,7 @@ export class OAuthController {
 
     let next: string | undefined;
     try {
-      ({ next } = this.oauth.consumeState(state));
+      ({ next } = await this.oauth.consumeState(state));
       const { exchangeCode } = await this.oauth.handleCallback(provider, code, ip);
       const params = new URLSearchParams({ code: exchangeCode });
       if (next) params.set('next', next);
@@ -65,7 +66,9 @@ export class OAuthController {
   @Post('oauth/exchange')
   @HttpCode(200)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
-  exchange(@Body() dto: OAuthExchangeDto, @Ip() ip: string) {
-    return this.oauth.exchange(dto.code, ip);
+  async exchange(@Body() dto: OAuthExchangeDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+    const result = await this.oauth.exchange(dto.code, ip);
+    setRefreshCookie(res, result.refreshToken, 30 * 24 * 60 * 60 * 1000);
+    return result;
   }
 }

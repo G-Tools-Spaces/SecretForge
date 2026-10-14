@@ -22,6 +22,9 @@ export SECRETFORGE_URL="https://your-api.example.com"
 #
 # ⚠️ SECRETFORGE_URL = the API URL (https://...).
 #    Service tokens (sf_...) go in SECRETFORGE_TOKEN — never in SECRETFORGE_URL.
+#
+# ⚠️ Only point SECRETFORGE_URL at a SecretForge API you control and trust —
+#    your Bearer token is sent to whatever host this URL names.
 
 # 2. Log in (once per machine; tokens stored in ~/.secretforge)
 forge login
@@ -45,6 +48,13 @@ forge run -- npm run dev
 | `forge set KEY=value` | Create or update a secret (prompts if value omitted) |
 | `forge list` | List secret keys (values are never shown) |
 | `forge run -- <cmd>` | Start `<cmd>` with all secrets injected as env vars |
+
+> **Security note (`forge run`):** injected secrets are visible in the child
+> process's environment (`/proc/<pid>/environ` on Linux, to same-user tools
+> like `ps -e` on some systems, and to any child that dumps its env). This is
+> the standard trade-off (same as `docker run -e`) — prefer `forge pull
+> --stdout` piping into a secrets manager if your threat model includes
+> same-host same-user observers.
 | `forge pull` | Write secrets to `.env` (escape hatch — prefer `forge run`) |
 | `forge import [file]` | Push an existing `.env` file into the vault |
 

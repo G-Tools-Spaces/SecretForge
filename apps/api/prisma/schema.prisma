@@ -47,7 +47,10 @@ model User {
   email        String   @unique
   name         String?
   passwordHash String? // null for OAuth-only accounts (Google/GitHub sign-in)
-  totpSecret   String? // Phase 7: TOTP 2FA (encrypted at rest when enabled)
+  // TOTP 2FA secret, AES-256-GCM encrypted with the master key ("<ct>.<iv>.<tag>").
+  // Null when 2FA is disabled.
+  totpSecret   String?
+  totpEnabled  Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -81,6 +84,18 @@ model OAuthAccount {
  * tokens out of redirect URLs, browser history and server access logs.
  * Stored as SHA-256 hash, 60-second TTL.
  */
+/** OAuth login-CSRF `state` values (M2 fix): persisted so the flow survives
+ *  restarts and works across multiple API instances. Single-use, 10-min TTL. */
+model OAuthState {
+  id        String   @id @default(cuid())
+  state     String   @unique
+  next      String? // same-origin post-login path, validated at issue time
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 model OAuthExchangeCode {
   id         String    @id @default(cuid())
   codeHash   String    @unique

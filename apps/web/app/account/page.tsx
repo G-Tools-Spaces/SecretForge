@@ -23,6 +23,13 @@ export default function AccountPage() {
   const [changingPw, setChangingPw] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
 
+  // Two-factor authentication (review M4)
+  const [totpEnabled, setTotpEnabled] = useState(false);
+  const [totpSetup, setTotpSetup] = useState<{ secret: string; otpauthUrl: string } | null>(null);
+  const [totpCode, setTotpCode] = useState('');
+  const [totpBusy, setTotpBusy] = useState(false);
+  const [totpError, setTotpError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!loading && !user) router.push('/login');
   }, [loading, user, router]);
@@ -30,6 +37,12 @@ export default function AccountPage() {
   useEffect(() => {
     if (user) setName(user.name ?? '');
   }, [user]);
+
+  useEffect(() => {
+    api<{ enabled: boolean }>('/auth/totp/status')
+      .then((s) => setTotpEnabled(s.enabled))
+      .catch(() => {});
+  }, []);
 
   if (loading || !user) {
     return (
@@ -81,6 +94,58 @@ export default function AccountPage() {
       setPwError(err instanceof Error ? err.message : 'Failed to change password');
     } finally {
       setChangingPw(false);
+    }
+  };
+
+  const startTotpSetup = async () => {
+    setTotpError(null);
+    setTotpBusy(true);
+    try {
+      const setup = await api<{ secret: string; otpauthUrl: string }>('/auth/totp/setup', { method: 'POST' });
+      setTotpSetup(setup);
+    } catch (err) {
+      setTotpError(err instanceof Error ? err.message : 'Failed to start 2FA setup');
+    } finally {
+      setTotpBusy(false);
+    }
+  };
+
+  const enableTotp = async () => {
+    setTotpError(null);
+    if (totpCode.length !== 6) {
+      setTotpError('Enter the 6-digit code from your app');
+      return;
+    }
+    setTotpBusy(true);
+    try {
+      await api('/auth/totp/enable', { method: 'POST', body: JSON.stringify({ code: totpCode }) });
+      setTotpEnabled(true);
+      setTotpSetup(null);
+      setTotpCode('');
+      toast.show('Two-factor authentication enabled');
+    } catch (err) {
+      setTotpError(err instanceof Error ? err.message : 'Failed to enable 2FA');
+    } finally {
+      setTotpBusy(false);
+    }
+  };
+
+  const disableTotp = async () => {
+    setTotpError(null);
+    if (totpCode.length !== 6) {
+      setTotpError('Enter your current 6-digit code to disable 2FA');
+      return;
+    }
+    setTotpBusy(true);
+    try {
+      await api('/auth/totp/disable', { method: 'POST', body: JSON.stringify({ code: totpCode }) });
+      setTotpEnabled(false);
+      setTotpCode('');
+      toast.show('Two-factor authentication disabled');
+    } catch (err) {
+      setTotpError(err instanceof Error ? err.message : 'Failed to disable 2FA');
+    } finally {
+      setTotpBusy(false);
     }
   };
 
@@ -186,6 +251,127 @@ export default function AccountPage() {
             <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-3)' }}>
               Changing your password signs out all other sessions (CLI and other browsers).
             </p>
+          </div>
+        </section>
+
+        {/* Two-factor authentication (review M4) */}
+        <section className="panel" style={{ marginTop: 14 }}>
+          <div className="panel-header">
+            <h2>Two-factor authentication</h2>
+          </div>
+          <div className="panel-body">
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+              {totpEnabled
+                ? '2FA is enabled — a code from your authenticator app is required at sign-in.'
+                : 'Add a second factor (TOTP — Google Authenticator, 1Password, etc.) to your account.'}
+            </p>
+
+            {totpEnabled ? (
+              <>
+                <div className="field" style={{ marginTop: 14 }}>
+                  <label className="field-label" htmlFor="totp-disable">
+                    Current 2FA code
+                  </label>
+                  <input
+                    id="totp-disable"
+                    className="input"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="123456"
+                    style={{ letterSpacing: '0.2em' }}
+                  />
+                </div>
+                <InlineError message={totpError} />
+                <div style={{ marginTop: 12 }}>
+                  <button className="btn" disabled={totpBusy} onClick={disableTotp}>
+                    {totpBusy ? 'Disabling…' : 'Disable 2FA'}
+                  </button>
+                </div>
+              </>
+            ) : totpSetup ? (
+              <>
+                <div className="notice" style={{ marginTop: 14, fontSize: 13 }}>
+                  <p style={{ margin: '0 0 6px' }}>
+                    <strong>1.</strong> Add this secret to your authenticator app (manual entry):
+                  </p>
+                  <code
+                    style={{
+                      display: 'block',
+                      padding: '6px 10px',
+                      background: 'var(--bg-2)',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      wordBreak: 'break-all',
+                      userSelect: 'all',
+                    }}
+                  >
+                    {totpSetup.secret}
+                  </code>
+                  <p style={{ margin: '10px 0 0' }}>
+                    <strong>2.</strong> Or scan this URL as a QR code:
+                  </p>
+                  <code
+                    style={{
+                      display: 'block',
+                      marginTop: 4,
+                      padding: '6px 10px',
+                      background: 'var(--bg-2)',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      wordBreak: 'break-all',
+                      userSelect: 'all',
+                    }}
+                  >
+                    {totpSetup.otpauthUrl}
+                  </code>
+                  <p style={{ margin: '10px 0 0' }}>
+                    <strong>3.</strong> Enter the 6-digit code the app shows to confirm and enable.
+                  </p>
+                </div>
+                <div className="field" style={{ marginTop: 14 }}>
+                  <label className="field-label" htmlFor="totp-enable">
+                    Verification code
+                  </label>
+                  <input
+                    id="totp-enable"
+                    className="input"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="123456"
+                    style={{ letterSpacing: '0.2em' }}
+                  />
+                </div>
+                <InlineError message={totpError} />
+                <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary" disabled={totpBusy} onClick={enableTotp}>
+                    {totpBusy ? 'Verifying…' : 'Enable 2FA'}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      setTotpSetup(null);
+                      setTotpCode('');
+                      setTotpError(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <InlineError message={totpError} />
+                <div style={{ marginTop: 12 }}>
+                  <button className="btn btn-primary" disabled={totpBusy} onClick={startTotpSetup}>
+                    {totpBusy ? 'Starting…' : 'Set up 2FA'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </section>
       </div>

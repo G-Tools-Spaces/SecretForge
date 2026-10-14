@@ -22,6 +22,12 @@ export class LoginDto {
   @IsString()
   @MinLength(1)
   password!: string;
+
+  /** Present when the user has 2FA enabled (second login step). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  totpCode?: string;
 }
 
 export class RefreshDto {
@@ -46,6 +52,13 @@ export class UpdateProfileDto {
 export class OAuthExchangeDto {
   @IsString()
   @MinLength(1)
+  code!: string;
+}
+
+export class TotpCodeDto {
+  @IsString()
+  @MinLength(6)
+  @MaxLength(10)
   code!: string;
 }
 

@@ -8,6 +8,7 @@ import { OAuthController } from './oauth.controller';
 import { AuthService } from './auth.service';
 import { OAuthService } from './oauth.service';
 import { JwtStrategy } from './jwt.strategy';
+import { TotpService } from './totp.service';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { JwtStrategy } from './jwt.strategy';
     }),
   ],
   controllers: [AuthController, OAuthController],
-  providers: [AuthService, OAuthService, JwtStrategy],
+  providers: [AuthService, OAuthService, JwtStrategy, TotpService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

@@ -44,6 +44,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [needsTotp, setNeedsTotp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Post-auth redirect target, e.g. /login?next=/invite/<token>.
@@ -64,7 +66,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       if (mode === 'login') {
-        await auth.login(email, password);
+        await auth.login(email, password, needsTotp ? totpCode : undefined);
       } else {
         await auth.signup(email, password, name || undefined);
       }
@@ -74,6 +76,16 @@ export default function LoginPage() {
       await refresh();
       router.push(next ?? '/projects');
     } catch (err) {
+      // 2FA challenge: the API refuses to issue tokens until a TOTP code
+      // is provided. Show the code field and keep the typed password.
+      const totpRequired =
+        err instanceof Error && (err as Error & { totpRequired?: boolean }).totpRequired === true;
+      if (totpRequired) {
+        setNeedsTotp(true);
+        setError('Enter the 6-digit code from your authenticator app');
+        setBusy(false);
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setBusy(false);
     }
@@ -210,6 +222,26 @@ export default function LoginPage() {
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 />
               </div>
+
+              {needsTotp && mode === 'login' && (
+                <div className="field">
+                  <label className="field-label" htmlFor="totp">
+                    Two-factor code
+                  </label>
+                  <input
+                    id="totp"
+                    className="input"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="123456"
+                    style={{ letterSpacing: '0.2em' }}
+                    autoFocus
+                  />
+                  <p className="field-help">6 digits from your authenticator app.</p>
+                </div>
+              )}
 
               <InlineError message={error} />
 
