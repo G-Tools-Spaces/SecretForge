@@ -222,9 +222,10 @@ Token misuse (wrong env, write attempts, revoked/expired use) is audited with
 ```
 apps/api          NestJS REST API + Prisma schema + tests
 apps/web          Next.js web UI (dark theme per wireframe)
-packages/cli      forge CLI (login/init/set/list/run/pull/import)
-packages/sdk-node @gtools-spaces/sdk — load()/config() for Node apps
-packages/sdk-python secretforge — load()/config() for Python apps (stdlib only)
+packages/cli      forge CLI — published on npm as @gtools-spaces/cli
+                  (login/init/set/list/run/pull/import)
+packages/sdk-node @gtools-spaces/sdk — load()/config() for Node apps (npm)
+packages/sdk-python secretforge — load()/config() for Python apps (PyPI, stdlib only)
 deploy/Caddyfile  HTTPS reverse proxy config
 ```
 

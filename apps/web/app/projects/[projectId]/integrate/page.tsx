@@ -43,9 +43,8 @@ export default function IntegratePage() {
     );
   }
 
-  const cli = `# Install the CLI
-cd packages/cli && npm run build
-npm link   # or: npm i -g .
+  const cli = `# Install the CLI (Node.js 20+ required)
+npm install -g @gtools-spaces/cli
 
 # Link this repo to the project
 forge init
@@ -64,6 +63,13 @@ import { config } from '@gtools-spaces/sdk';
 // Fetches secrets once at boot and merges them into process.env.
 // Real environment variables always win over the vault.
 await config(); // uses SECRETFORGE_TOKEN + .secretforge.json`;
+
+  const pySdk = `# pip install secretforge   (Python 3.9+, stdlib only)
+import secretforge
+
+# Merges vault secrets into os.environ.
+# Real environment variables always win over the vault.
+secretforge.config()  # uses SECRETFORGE_TOKEN + .secretforge.json`;
 
   const ci = `# 1. Create a token: Tokens tab → New token (pick the env)
 # 2. Store it as a CI secret named SECRETFORGE_TOKEN
@@ -113,6 +119,16 @@ await config(); // uses SECRETFORGE_TOKEN + .secretforge.json`;
               </span>
             </div>
             <pre className="code-block mono">{sdk}</pre>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Python SDK</h2>
+              <span className="badge" style={{ marginLeft: 'auto' }}>
+                secretforge
+              </span>
+            </div>
+            <pre className="code-block mono">{pySdk}</pre>
           </section>
 
           <section className="panel">

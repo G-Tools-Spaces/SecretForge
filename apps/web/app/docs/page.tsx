@@ -151,7 +151,7 @@ nvm install 20 && nvm use 20    # any OS via nvm`,
                 },
                 {
                   title: 'Install the forge CLI',
-                  body: 'From npm (recommended). Or from the repo, for contributors:',
+                  body: 'Published on npm (@gtools-spaces/cli, MIT). Requires Node.js 20+. Contributors can still build from the repo:',
                   code: `npm install -g @gtools-spaces/cli
 
 # or from the repo:
@@ -256,6 +256,7 @@ export SECRETFORGE_TOKEN=sf_... # or use your process manager's env`,
                 },
                 {
                   title: 'Install the SDK',
+                  body: 'Published on npm (@gtools-spaces/sdk).',
                   code: `npm i @gtools-spaces/sdk`,
                 },
                 {
@@ -297,6 +298,7 @@ export SECRETFORGE_TOKEN=sf_... # or your venv / process manager env`,
                 },
                 {
                   title: 'Install the SDK',
+                  body: 'Published on PyPI (secretforge).',
                   code: `pip install secretforge   # stdlib only, Python 3.9+`,
                 },
                 {
