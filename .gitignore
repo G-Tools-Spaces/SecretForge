@@ -31,3 +31,4 @@ coverage/
 palatte.png
 __pycache__/
 *.pyc
+*.egg-info/
