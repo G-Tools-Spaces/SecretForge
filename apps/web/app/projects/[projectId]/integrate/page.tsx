@@ -52,12 +52,17 @@ export SECRETFORGE_URL="https://secretforge-api.onrender.com"
 # Link this repo to the project
 forge init
 
+# Monorepo? Pin a secret group per service directory
+forge init --group backend
+
 # Run your app with secrets injected — no .env file needed
-forge run --env dev -- npm run dev`;
+forge run --env dev -- npm run dev
+forge run --group backend -- npm start   # only that group's secrets`;
 
   const link = `{
   "projectId": "${projectId}",
-  "defaultEnv": "dev"
+  "defaultEnv": "dev",
+  "group": "backend"
 }`;
 
   const sdk = `// npm i @gtools-spaces/sdk
@@ -65,14 +70,27 @@ import { config } from '@gtools-spaces/sdk';
 
 // Fetches secrets once at boot and merges them into process.env.
 // Real environment variables always win over the vault.
-await config(); // uses SECRETFORGE_TOKEN + .secretforge.json`;
+await config(); // uses SECRETFORGE_TOKEN + .secretforge.json
+
+// Service-scoped secrets (monorepo): pick a group
+await config({ group: 'backend' }); // or set SECRETFORGE_GROUP=backend`;
 
   const pySdk = `# pip install secretforge   (Python 3.9+, stdlib only)
 import secretforge
 
 # Merges vault secrets into os.environ.
 # Real environment variables always win over the vault.
-secretforge.config()  # uses SECRETFORGE_TOKEN + .secretforge.json`;
+secretforge.config()  # uses SECRETFORGE_TOKEN + .secretforge.json
+
+# Service-scoped secrets (monorepo): pick a group
+secretforge.config(group='backend')  # or set SECRETFORGE_GROUP=backend`;
+
+  const groups = `# Same key can live in several groups — create them in the Secrets tab
+forge set DATABASE_URL=... --group backend
+forge run  --group backend -- npm start
+
+# Node SDK:   await config({ group: 'backend' })
+# Python SDK: secretforge.config(group='backend')`;
 
   const ci = `# 1. Create a token: Tokens tab → New token (pick the env)
 # 2. Store it as a CI secret named SECRETFORGE_TOKEN
@@ -112,7 +130,8 @@ secretforge.config()  # uses SECRETFORGE_TOKEN + .secretforge.json`;
             <pre className="code-block mono">{link}</pre>
             <div className="panel-body" style={{ paddingTop: 10, paddingBottom: 12 }}>
               <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>
-                Contains only the project ID and default environment — never any secrets.
+                Contains only the project ID, default environment and an optional group — never any
+                secrets. The group field is written by forge init --group.
               </p>
             </div>
           </section>
@@ -135,6 +154,24 @@ secretforge.config()  # uses SECRETFORGE_TOKEN + .secretforge.json`;
               </span>
             </div>
             <pre className="code-block mono">{pySdk}</pre>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Secret groups</h2>
+              <span className="badge" style={{ marginLeft: 'auto' }}>
+                monorepos
+              </span>
+            </div>
+            <pre className="code-block mono">{groups}</pre>
+            <div className="panel-body" style={{ paddingTop: 10, paddingBottom: 12 }}>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>
+                The same key can exist in several groups (e.g. a different DATABASE_URL for backend and
+                worker). Resolution: --group flag &gt; SECRETFORGE_GROUP &gt; .secretforge.json &gt;
+                ungrouped. Service tokens are environment-scoped — one token reads every group in its
+                environment.
+              </p>
+            </div>
           </section>
 
           <section className="panel">

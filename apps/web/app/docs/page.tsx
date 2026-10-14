@@ -11,6 +11,7 @@ import { useUser } from '@/lib/useUser';
 const SECTIONS = [
   { id: 'getting-started', label: 'Getting started' },
   { id: 'cli', label: 'CLI' },
+  { id: 'groups', label: 'Secret groups' },
   { id: 'tokens', label: 'Service tokens' },
   { id: 'sdk-node', label: 'Node SDK' },
   { id: 'sdk-python', label: 'Python SDK' },
@@ -122,7 +123,7 @@ export default function DocsPage() {
             <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8, fontSize: 13, color: 'var(--text-2)' }}>
               <li>Sign up, then create an <strong>organization</strong> for your team.</li>
               <li>Create a <strong>project</strong> inside the org — it gets Development, Staging, and Production environments automatically.</li>
-              <li>Add secrets on the <strong>Secrets</strong> tab (or bulk-paste a .env via <em>Import</em>).</li>
+              <li>Add secrets on the <strong>Secrets</strong> tab (or bulk-paste a .env via <em>Import</em>) — group them per service for monorepos.</li>
               <li>Invite teammates from <strong>Members</strong> with per-project roles.</li>
               <li>Install the CLI or SDK to inject secrets into your apps.</li>
             </ol>
@@ -174,36 +175,42 @@ npm link   # or: npm i -g .`,
                 },
                 {
                   title: 'forge init — link your repo to a project',
-                  body: 'Interactive picker; writes .secretforge.json (project ID + default env only — safe to commit).',
+                  body: 'Interactive picker; writes .secretforge.json (project ID + default env only — safe to commit). In a monorepo, add --group to pin a secret group for this directory.',
                   code: `cd your-app
-forge init`,
+forge init
+forge init --group backend   # monorepo: one link per service dir`,
                 },
                 {
                   title: 'forge set — add or update a secret',
-                  body: 'Prompts hidden if the value is omitted. Every write creates a new version.',
+                  body: 'Prompts hidden if the value is omitted. Every write creates a new version. With --group, the same key can exist in several groups.',
                   code: `forge set API_KEY=abc123 --env dev
-forge set API_KEY            # hidden prompt`,
+forge set API_KEY            # hidden prompt
+forge set API_KEY=x --group backend`,
                 },
                 {
                   title: 'forge import — migrate an existing .env file',
-                  body: 'Bulk-pushes every KEY=value into the vault. Rotate those secrets afterwards if they were ever shared.',
-                  code: `forge import .env --env dev`,
+                  body: 'Bulk-pushes every KEY=value into the vault. Rotate those secrets afterwards if they were ever shared. One .env per group keeps monorepos tidy.',
+                  code: `forge import .env --env dev
+forge import backend/.env --group backend`,
                 },
                 {
                   title: 'forge list — see keys and versions',
-                  body: 'Never prints values — keys, version numbers, and timestamps only.',
-                  code: `forge list --env dev`,
+                  body: 'Never prints values — keys, version numbers, and timestamps only. Without --group it lists every group, showing keys as group/key.',
+                  code: `forge list --env dev
+forge list --env dev --group backend`,
                 },
                 {
                   title: 'forge run — start your app with secrets injected',
-                  body: 'Fetches decrypted secrets over HTTPS and merges them into the child process env. Nothing is written to disk.',
-                  code: `forge run --env dev -- npm run dev`,
+                  body: 'Fetches decrypted secrets over HTTPS and merges them into the child process env. Nothing is written to disk. With --group, only secrets from that group are injected.',
+                  code: `forge run --env dev -- npm run dev
+forge run --group backend -- npm start`,
                 },
                 {
                   title: 'forge pull — .env escape hatch',
-                  body: 'Prints or writes plaintext .env format. Use sparingly — the file is chmod 600 and you should delete it when done.',
+                  body: 'Prints or writes plaintext .env format. Use sparingly — the file is chmod 600 and you should delete it when done. Exports are per-group: pass --group.',
                   code: `forge pull --env dev --stdout   # print only
-forge pull --env dev            # writes ./.env (chmod 600)`,
+forge pull --env dev            # writes ./.env (chmod 600)
+forge pull --group backend --stdout`,
                 },
                 {
                   title: 'forge whoami — check the current session',
@@ -218,10 +225,47 @@ forge pull --env dev            # writes ./.env (chmod 600)`,
             />
             <Note>
               Env resolution: <span className="mono">--env</span> flag &gt;{' '}
-              <span className="mono">SECRETFORGE_ENV</span> &gt; project default &gt; dev. API URL:{' '}
-              <span className="mono">SECRETFORGE_URL</span> (default http://localhost:4000). In CI, skip
-              login entirely — set <span className="mono">SECRETFORGE_TOKEN</span> instead (see Service
-              tokens).
+              <span className="mono">SECRETFORGE_ENV</span> &gt; project default &gt; dev. Group
+              resolution: <span className="mono">--group</span> flag &gt;{' '}
+              <span className="mono">SECRETFORGE_GROUP</span> &gt; link file &gt; ungrouped (see Secret
+              groups). API URL: <span className="mono">SECRETFORGE_URL</span> (default
+              http://localhost:4000). In CI, skip login entirely — set{' '}
+              <span className="mono">SECRETFORGE_TOKEN</span> instead (see Service tokens).
+            </Note>
+          </DocSection>
+
+          {/* Secret groups */}
+          <DocSection id="groups" title="Secret groups">
+            <P>
+              Groups let the same key exist multiple times in one environment — for example a different{' '}
+              <span className="mono">DATABASE_URL</span> for <span className="mono">backend</span> and{' '}
+              <span className="mono">worker</span> in a monorepo. Create and switch groups in the Secrets
+              tab; names are lowercase letters, digits and dashes (max 30 chars). Secrets without a group
+              are <em>ungrouped</em> and fully isolated from grouped ones.
+            </P>
+            <Code>{`# Every secret command takes --group:
+forge set DATABASE_URL=postgres://... --group backend
+forge run  --group backend -- npm start
+forge list                       # all groups, keys shown as group/key
+forge pull --group backend --stdout
+
+# Or set it once per machine / pipeline:
+export SECRETFORGE_GROUP=backend`}</Code>
+            <P>
+              Resolution order: <span className="mono">--group</span> flag &gt;{' '}
+              <span className="mono">SECRETFORGE_GROUP</span> env var &gt; the group saved in{' '}
+              <span className="mono">.secretforge.json</span> (written by{' '}
+              <span className="mono">forge init --group</span>) &gt; ungrouped. The SDKs follow the same
+              order:
+            </P>
+            <Code>{`// Node SDK
+await config({ group: 'backend' });
+
+# Python SDK
+secretforge.config(group='backend')`}</Code>
+            <Note>
+              Service tokens are scoped to the environment, not the group — one token reads every group in
+              its environment. Exports are always per-group; the web UI shows one .env block per group.
             </Note>
           </DocSection>
 
@@ -281,8 +325,8 @@ await config();`,
               Prefer no side effects? <span className="mono">load()</span> returns a plain object without
               touching <span className="mono">process.env</span>. Options:{' '}
               <span className="mono">projectId</span>, <span className="mono">env</span>,{' '}
-              <span className="mono">token</span>, <span className="mono">url</span> — all optional when the
-              env vars / link file are present.
+              <span className="mono">group</span>, <span className="mono">token</span>,{' '}
+              <span className="mono">url</span> — all optional when the env vars / link file are present.
             </Note>
           </DocSection>
 
@@ -323,9 +367,9 @@ secretforge.config()`,
               Prefer no side effects? <span className="mono">load()</span> returns a plain dict without
               touching <span className="mono">os.environ</span>. Options:{' '}
               <span className="mono">project_id</span>, <span className="mono">env</span>,{' '}
-              <span className="mono">token</span>, <span className="mono">url</span> — all optional when the
-              env vars / link file are present. Errors raise{' '}
-              <span className="mono">secretforge.ForgeError</span> with the HTTP status.
+              <span className="mono">group</span>, <span className="mono">token</span>,{' '}
+              <span className="mono">url</span> — all optional when the env vars / link file are present.
+              Errors raise <span className="mono">secretforge.ForgeError</span> with the HTTP status.
             </Note>
           </DocSection>
 
@@ -402,11 +446,11 @@ secretforge.config()`,
                   <ApiRow method="POST" path="/projects" desc="Create project · GET /projects lists yours" />
                   <ApiRow method="PATCH" path="/projects/:id" desc="Rename (ADMIN) · DELETE removes (ADMIN)" />
                   <ApiRow method="POST" path="/projects/:id/envs" desc="Add environment (ADMIN)" />
-                  <ApiRow method="GET" path="/projects/:id/envs/:env/secrets" desc="Masked list (READ)" />
-                  <ApiRow method="PUT" path="/projects/:id/envs/:env/secrets/:key" desc="Upsert (WRITE) · DELETE (ADMIN)" />
-                  <ApiRow method="GET" path="…/secrets/:key" desc="Reveal value (READ, audited)" />
-                  <ApiRow method="GET" path="…/secrets/export · …/secrets/import" desc="Bulk .env export (READ) / import (WRITE)" />
-                  <ApiRow method="GET" path="…/secrets/:key/versions" desc="History · POST …/versions/:v/rollback (ADMIN)" />
+                  <ApiRow method="GET" path="/projects/:id/envs/:env/secrets" desc="Masked list (READ) · ?group= filters one group" />
+                  <ApiRow method="PUT" path="/projects/:id/envs/:env/secrets/:key" desc="Upsert (WRITE) · DELETE (ADMIN) · ?group=" />
+                  <ApiRow method="GET" path="…/secrets/:key" desc="Reveal value (READ, audited) · ?group=" />
+                  <ApiRow method="GET" path="…/secrets/export · …/secrets/import" desc="Bulk .env export (READ) / import (WRITE) · per-group via ?group=" />
+                  <ApiRow method="GET" path="…/secrets/:key/versions" desc="History · POST …/versions/:v/rollback (ADMIN) · ?group=" />
                   <ApiRow method="POST" path="/projects/:id/members" desc="Share by email + role (ADMIN)" />
                   <ApiRow method="POST" path="/projects/:id/envs/:env/tokens" desc="Create service token (ADMIN)" />
                   <ApiRow method="GET" path="/projects/:id/tokens" desc="List tokens · DELETE …/tokens/:id revokes (ADMIN)" />
@@ -416,7 +460,8 @@ secretforge.config()`,
             </div>
             <Note>
               All secrets endpoints accept either a user JWT or a read-only service token scoped to that
-              environment.
+              environment. Secret endpoints take an optional <span className="mono">?group=</span> query
+              param — the same key can exist in several groups.
             </Note>
           </DocSection>
         </main>
