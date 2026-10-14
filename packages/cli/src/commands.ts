@@ -31,10 +31,16 @@ function fail(err: unknown): never {
 // ── forge login ─────────────────────────────────────────────────────────────
 
 export async function cmdLogin(urlFlag?: string): Promise<void> {
-  const apiUrl = (urlFlag || process.env.SECRETFORGE_URL || 'http://localhost:4000').replace(
-    /\/+$/,
-    '',
-  );
+  const rawUrl = urlFlag || process.env.SECRETFORGE_URL || 'http://localhost:4000';
+  if (rawUrl.startsWith('sf_')) {
+    console.error(
+      'SECRETFORGE_URL looks like a service token (starts with "sf_").\n' +
+        'Service tokens go in SECRETFORGE_TOKEN, not SECRETFORGE_URL.\n' +
+        'SECRETFORGE_URL must be the API URL, e.g. https://secretforge-api.onrender.com',
+    );
+    process.exit(1);
+  }
+  const apiUrl = rawUrl.replace(/\/+$/, '');
 
   console.log(`Logging in to ${apiUrl}`);
   const email = await prompt('Email: ');

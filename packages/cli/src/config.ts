@@ -29,6 +29,14 @@ export interface Credentials {
 /** API base URL: SECRETFORGE_URL env var, or local default. */
 export function defaultApiUrl(): string {
   const url = process.env.SECRETFORGE_URL || 'http://localhost:4000';
+  if (url.startsWith('sf_')) {
+    console.error(
+      'SECRETFORGE_URL looks like a service token (starts with "sf_").\n' +
+        'Service tokens go in SECRETFORGE_TOKEN, not SECRETFORGE_URL.\n' +
+        'SECRETFORGE_URL must be the API URL, e.g. https://secretforge-api.onrender.com',
+    );
+    process.exit(1);
+  }
   return url.replace(/\/+$/, ''); // strip trailing slashes
 }
 
