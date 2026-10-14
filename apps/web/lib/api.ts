@@ -159,8 +159,22 @@ export interface Project {
   _count?: { members: number };
 }
 
+/** Secret identity inside an environment: "" group = ungrouped. */
+export interface SecretRef {
+  group: string;
+  key: string;
+}
+
+/** `?group=…` query suffix for secret routes (empty for ungrouped). */
+export const groupQuery = (group: string): string =>
+  group ? `?group=${encodeURIComponent(group)}` : '';
+
+/** Display label: `backend/PORT` or just `PORT`. */
+export const refLabel = ({ group, key }: SecretRef): string => (group ? `${group}/${key}` : key);
+
 export interface SecretRow {
   id: string;
+  group: string;
   key: string;
   version: number;
   rotatedAt: string;

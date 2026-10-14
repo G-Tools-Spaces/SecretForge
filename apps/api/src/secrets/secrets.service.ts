@@ -7,7 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { EnvelopeEncryptionService } from '../crypto/envelope-encryption.service';
 import { AuditService } from '../audit/audit.service';
-import { isValidEnvName, isValidSecretKey, parseEnvContent } from './env-format';
+import { isValidEnvName, isValidGroupName, isValidSecretKey, parseEnvContent } from './env-format';
 
 /** Who is reading/writing: a user (JWT) or a service token (Phase 6). */
 export interface SecretActor {
@@ -50,6 +50,22 @@ export class SecretsService {
     return env;
   }
 
+  /** Normalize + validate an optional group name ("" = ungrouped). */
+  private normGroup(group?: string): string {
+    const g = (group ?? '').trim();
+    if (!isValidGroupName(g)) {
+      throw new BadRequestException(
+        `Invalid group name "${g.slice(0, 40)}": use lowercase letters, digits and dashes (max 30)`,
+      );
+    }
+    return g;
+  }
+
+  /** Audit-resource suffix for a group (empty when ungrouped). */
+  private groupPath(group: string): string {
+    return group ? `/group/${group}` : '';
+  }
+
   /** Unwrap the project's data key. */
   private async projectDek(projectId: string): Promise<Buffer> {
     const project = await this.prisma.project.findUnique({
@@ -61,12 +77,16 @@ export class SecretsService {
   }
 
   /** Masked list for the UI: keys + metadata, never values. */
-  async list(projectId: string, envName: string) {
+  async list(projectId: string, envName: string, group?: string) {
     const env = await this.resolveEnv(projectId, envName);
+    // No group given → every group (rows carry `group`); group given → just that one.
+    const where =
+      group === undefined ? { environmentId: env.id } : { environmentId: env.id, group: this.normGroup(group) };
     const secrets = await this.prisma.secret.findMany({
-      where: { environmentId: env.id },
+      where,
       select: {
         id: true,
+        group: true,
         key: true,
         version: true,
         rotatedAt: true,
@@ -74,7 +94,7 @@ export class SecretsService {
         createdAt: true,
         updatedById: true,
       },
-      orderBy: { key: 'asc' },
+      orderBy: [{ group: 'asc' }, { key: 'asc' }],
     });
     return { environment: env.name, secrets };
   }
@@ -87,7 +107,9 @@ export class SecretsService {
     value: string,
     userId: string,
     ip?: string,
+    groupName?: string,
   ) {
+    const group = this.normGroup(groupName);
     if (!isValidSecretKey(key)) {
       throw new BadRequestException(
         `Invalid secret key "${key.slice(0, 40)}": must match ${/^[A-Za-z_][A-Za-z0-9_]*$/}`,
@@ -99,13 +121,14 @@ export class SecretsService {
 
     const result = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.secret.findUnique({
-        where: { environmentId_key: { environmentId: env.id, key } },
+        where: { environmentId_group_key: { environmentId: env.id, group, key } },
       });
 
       if (!existing) {
         const secret = await tx.secret.create({
           data: {
             environmentId: env.id,
+            group,
             key,
             encryptedValue: blob.ciphertext,
             iv: blob.iv,
@@ -156,9 +179,9 @@ export class SecretsService {
       action: result.created ? 'SECRET_CREATED' : 'SECRET_UPDATED',
       userId,
       projectId,
-      resource: `project/${projectId}/env/${envName}/secret/${key}`,
+      resource: `project/${projectId}/env/${envName}${this.groupPath(group)}/secret/${key}`,
       ip,
-      meta: { version: result.secret.version, env: envName },
+      meta: { version: result.secret.version, env: envName, ...(group ? { group } : {}) },
     });
 
     return {
@@ -170,10 +193,18 @@ export class SecretsService {
   }
 
   /** Decrypt one secret. Every reveal is audited (plan security req #6). */
-  async reveal(projectId: string, envName: string, key: string, actor: SecretActor, ip?: string) {
+  async reveal(
+    projectId: string,
+    envName: string,
+    key: string,
+    actor: SecretActor,
+    ip?: string,
+    groupName?: string,
+  ) {
+    const group = this.normGroup(groupName);
     const env = await this.resolveEnv(projectId, envName);
     const secret = await this.prisma.secret.findUnique({
-      where: { environmentId_key: { environmentId: env.id, key } },
+      where: { environmentId_group_key: { environmentId: env.id, group, key } },
     });
     if (!secret) throw new NotFoundException(`Secret "${key}" not found`);
 
@@ -194,19 +225,27 @@ export class SecretsService {
       actorType: actor.actorType,
       userId: actor.userId,
       projectId,
-      resource: `project/${projectId}/env/${envName}/secret/${key}`,
+      resource: `project/${projectId}/env/${envName}${this.groupPath(group)}/secret/${key}`,
       ip,
-      meta: { version: secret.version, env: envName, ...(actor.tokenName ? { tokenName: actor.tokenName } : {}) },
+      meta: { version: secret.version, env: envName, ...(group ? { group } : {}), ...(actor.tokenName ? { tokenName: actor.tokenName } : {}) },
     });
 
     return { key, value, version: secret.version };
   }
 
   /** Delete a secret and its version history (cascade). */
-  async remove(projectId: string, envName: string, key: string, userId: string, ip?: string) {
+  async remove(
+    projectId: string,
+    envName: string,
+    key: string,
+    userId: string,
+    ip?: string,
+    groupName?: string,
+  ) {
+    const group = this.normGroup(groupName);
     const env = await this.resolveEnv(projectId, envName);
     const secret = await this.prisma.secret.findUnique({
-      where: { environmentId_key: { environmentId: env.id, key } },
+      where: { environmentId_group_key: { environmentId: env.id, group, key } },
     });
     if (!secret) throw new NotFoundException(`Secret "${key}" not found`);
 
@@ -216,9 +255,9 @@ export class SecretsService {
       action: 'SECRET_DELETED',
       userId,
       projectId,
-      resource: `project/${projectId}/env/${envName}/secret/${key}`,
+      resource: `project/${projectId}/env/${envName}${this.groupPath(group)}/secret/${key}`,
       ip,
-      meta: { env: envName },
+      meta: { env: envName, ...(group ? { group } : {}) },
     });
   }
 
@@ -229,7 +268,9 @@ export class SecretsService {
     content: string,
     userId: string,
     ip?: string,
+    groupName?: string,
   ) {
+    const group = this.normGroup(groupName);
     const env = await this.resolveEnv(projectId, envName);
     const { keys, invalid } = parseEnvContent(content);
     const keyList = Object.keys(keys);
@@ -243,11 +284,12 @@ export class SecretsService {
 
     const results = [];
     for (const key of keyList) {
-      results.push(await this.upsert(projectId, envName, key, keys[key], userId, ip));
+      results.push(await this.upsert(projectId, envName, key, keys[key], userId, ip, group));
     }
 
     return {
       environment: env.name,
+      group,
       imported: results.length,
       created: results.filter((r) => r.createdAt).length,
       updated: results.filter((r) => !r.createdAt).length,
@@ -256,14 +298,23 @@ export class SecretsService {
   }
 
   /** Export all secrets for an env as `.env` text. Audited as a bulk read. */
-  async export(projectId: string, envName: string, actor: SecretActor, ip?: string) {
+  async export(
+    projectId: string,
+    envName: string,
+    actor: SecretActor,
+    ip?: string,
+    groupName?: string,
+  ) {
+    const group = this.normGroup(groupName);
     const env = await this.resolveEnv(projectId, envName);
     const secrets = await this.prisma.secret.findMany({
-      where: { environmentId: env.id },
+      where: { environmentId: env.id, group },
       orderBy: { key: 'asc' },
     });
     if (secrets.length === 0) {
-      throw new NotFoundException(`No secrets in environment "${envName}"`);
+      throw new NotFoundException(
+        group ? `No secrets in group "${group}" of "${envName}"` : `No secrets in environment "${envName}"`,
+      );
     }
 
     const dek = await this.projectDek(projectId);
@@ -279,24 +330,26 @@ export class SecretsService {
       actorType: actor.actorType,
       userId: actor.userId,
       projectId,
-      resource: `project/${projectId}/env/${envName}/secrets`,
+      resource: `project/${projectId}/env/${envName}${this.groupPath(group)}/secrets`,
       ip,
       meta: {
         env: envName,
+        ...(group ? { group } : {}),
         count: secrets.length,
         purpose: 'export',
         ...(actor.tokenName ? { tokenName: actor.tokenName } : {}),
       },
     });
 
-    return { environment: env.name, count: secrets.length, values };
+    return { environment: env.name, group, count: secrets.length, values };
   }
 
   /** Version history for one secret (metadata only — no values). */
-  async versions(projectId: string, envName: string, key: string) {
+  async versions(projectId: string, envName: string, key: string, groupName?: string) {
+    const group = this.normGroup(groupName);
     const env = await this.resolveEnv(projectId, envName);
     const secret = await this.prisma.secret.findUnique({
-      where: { environmentId_key: { environmentId: env.id, key } },
+      where: { environmentId_group_key: { environmentId: env.id, group, key } },
       include: { versions: { orderBy: { version: 'desc' } } },
     });
     if (!secret) throw new NotFoundException(`Secret "${key}" not found`);
@@ -323,10 +376,12 @@ export class SecretsService {
     targetVersion: number,
     userId: string,
     ip?: string,
+    groupName?: string,
   ) {
+    const group = this.normGroup(groupName);
     const env = await this.resolveEnv(projectId, envName);
     const secret = await this.prisma.secret.findUnique({
-      where: { environmentId_key: { environmentId: env.id, key } },
+      where: { environmentId_group_key: { environmentId: env.id, group, key } },
     });
     if (!secret) throw new NotFoundException(`Secret "${key}" not found`);
 
@@ -369,9 +424,9 @@ export class SecretsService {
       action: 'SECRET_VERSION_ROLLED_BACK',
       userId,
       projectId,
-      resource: `project/${projectId}/env/${envName}/secret/${key}`,
+      resource: `project/${projectId}/env/${envName}${this.groupPath(group)}/secret/${key}`,
       ip,
-      meta: { from: secret.version, to: targetVersion, newVersion, env: envName },
+      meta: { from: secret.version, to: targetVersion, newVersion, env: envName, ...(group ? { group } : {}) },
     });
 
     return { key, version: newVersion, rolledBackTo: targetVersion };

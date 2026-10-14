@@ -8,6 +8,7 @@ import { OrgShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
 import { PageHeader, ErrorState, Modal } from '@/components/ui';
 import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/Confirm';
 
 const ORG_ROLE_BADGE: Record<string, string> = {
   OWNER: 'badge badge-accent',
@@ -26,6 +27,7 @@ export default function OrgPage() {
   const router = useRouter();
   const { user, loading } = useUser();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [org, setOrg] = useState<OrgDetail | null>(null);
   const [invites, setInvites] = useState<OrgInvite[]>([]);
@@ -102,7 +104,13 @@ export default function OrgPage() {
   };
 
   const removeMember = async (userId: string, label: string) => {
-    if (!confirm(`Remove ${label} from ${org?.name}? They will lose access to all its projects.`)) return;
+    const ok = await confirm({
+      title: 'Remove member',
+      message: `Remove ${label} from ${org?.name}? They will lose access to all its projects.`,
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api(`/orgs/${orgId}/members/${userId}`, { method: 'DELETE' });
       toast.show(`Removed ${label}`);

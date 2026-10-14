@@ -173,6 +173,18 @@ forge import .env --env dev          # migration helper: push an existing .env
 forge logout
 ```
 
+- **Groups** (frontend/backend/… inside one environment): every secret route takes
+  `?group=<name>` (lowercase slug; omitted = ungrouped). The same key name can exist in
+  several groups. In a monorepo, link each folder to its group and import its own `.env`:
+  ```bash
+  cd backend  && forge init --group backend  && forge import .env --env dev
+  cd frontend && forge init --group frontend && forge import .env --env dev
+  cd backend  && forge run --env dev -- npm start      # sees only backend secrets
+  forge run --group frontend -- npm run dev            # or pick explicitly (or SECRETFORGE_GROUP)
+  ```
+  Group resolution: `--group` > `SECRETFORGE_GROUP` > `group` in `.secretforge.json` > ungrouped.
+  The Node/Python SDKs accept `group` the same way. Note: service tokens are scoped to an
+  environment, not a group — a token can read every group in its environment.
 - `.secretforge.json` (project ID + default env only) is safe to commit.
 - `forge run` fetches decrypted secrets over HTTPS and merges them into the
   child's environment — nothing is written to disk, and secrets override any

@@ -22,6 +22,8 @@ export interface ForgeOptions {
   projectId?: string;
   /** Environment name. Default: SECRETFORGE_ENV > link defaultEnv > "dev". */
   env?: string;
+  /** Secret group (e.g. "frontend"). Default: SECRETFORGE_GROUP > link group > ungrouped. */
+  group?: string;
   /** Service token (`sf_...`). Default: SECRETFORGE_TOKEN env var. */
   token?: string;
   /** API base URL. Default: SECRETFORGE_URL env var > http://localhost:4000. */
@@ -43,6 +45,7 @@ const PROJECT_FILE_NAME = '.secretforge.json';
 interface ProjectLink {
   projectId: string;
   defaultEnv: string;
+  group?: string;
 }
 
 /** Walk up from `startDir` looking for `.secretforge.json` (like the CLI). */
@@ -63,7 +66,11 @@ function loadProjectLink(startDir: string): ProjectLink | null {
   try {
     const parsed = JSON.parse(readFileSync(file, 'utf8'));
     if (parsed.projectId && parsed.defaultEnv) {
-      return { projectId: parsed.projectId, defaultEnv: parsed.defaultEnv };
+      return {
+        projectId: parsed.projectId,
+        defaultEnv: parsed.defaultEnv,
+        ...(parsed.group ? { group: String(parsed.group) } : {}),
+      };
     }
   } catch {
     /* malformed link file — treated as absent */
@@ -76,6 +83,7 @@ interface ResolvedOptions {
   env: string;
   token: string;
   url: string;
+  group: string;
 }
 
 function resolveOptions(opts: ForgeOptions): ResolvedOptions {
@@ -100,7 +108,9 @@ function resolveOptions(opts: ForgeOptions): ResolvedOptions {
   const env = opts.env ?? process.env.SECRETFORGE_ENV ?? link?.defaultEnv ?? 'dev';
   const url = (opts.url ?? process.env.SECRETFORGE_URL ?? 'http://localhost:4000').replace(/\/+$/, '');
 
-  return { projectId, env, token, url };
+  const group = opts.group ?? process.env.SECRETFORGE_GROUP ?? link?.group ?? '';
+
+  return { projectId, env, token, url, group };
 }
 
 /**
@@ -108,10 +118,10 @@ function resolveOptions(opts: ForgeOptions): ResolvedOptions {
  * Does NOT touch process.env — use `config()` for that.
  */
 export async function load(opts: ForgeOptions = {}): Promise<Record<string, string>> {
-  const { projectId, env, token, url } = resolveOptions(opts);
+  const { projectId, env, token, url, group } = resolveOptions(opts);
 
   const res = await fetch(
-    `${url}/projects/${encodeURIComponent(projectId)}/envs/${encodeURIComponent(env)}/secrets/export`,
+    `${url}/projects/${encodeURIComponent(projectId)}/envs/${encodeURIComponent(env)}/secrets/export${group ? `?group=${encodeURIComponent(group)}` : ''}`,
     { headers: { authorization: `Bearer ${token}` } },
   );
 

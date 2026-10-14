@@ -17,6 +17,8 @@ export const PROJECT_FILE_NAME = '.secretforge.json';
 export interface ProjectLink {
   projectId: string;
   defaultEnv: string;
+  /** Optional secret group for this directory (e.g. "frontend"). */
+  group?: string;
 }
 
 export interface Credentials {
@@ -67,12 +69,17 @@ export function loadProjectLink(startDir: string = process.cwd()): ProjectLink {
   if (!parsed.projectId || !parsed.defaultEnv) {
     throw new Error(`${file} is malformed: expected { "projectId", "defaultEnv" }`);
   }
-  return { projectId: parsed.projectId, defaultEnv: parsed.defaultEnv };
+  return {
+    projectId: parsed.projectId,
+    defaultEnv: parsed.defaultEnv,
+    ...(parsed.group ? { group: String(parsed.group) } : {}),
+  };
 }
 
 export function saveProjectLink(link: ProjectLink, dir: string = process.cwd()): string {
   const file = join(dir, PROJECT_FILE_NAME);
-  writeFileSync(file, JSON.stringify({ projectId: link.projectId, defaultEnv: link.defaultEnv }, null, 2) + '\n');
+  const data = { projectId: link.projectId, defaultEnv: link.defaultEnv, ...(link.group ? { group: link.group } : {}) };
+  writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
   return file;
 }
 
@@ -103,4 +110,18 @@ export function clearCredentials(): void {
  */
 export function resolveEnv(flagEnv: string | undefined, link: ProjectLink): string {
   return flagEnv || process.env.SECRETFORGE_ENV || link.defaultEnv || 'dev';
+}
+
+/**
+ * Group resolution order:
+ *   --group flag > SECRETFORGE_GROUP env var > project link group > "" (ungrouped)
+ * Returns undefined when nothing is set, so callers can tell "ungrouped" from "any".
+ */
+export function resolveGroup(flagGroup: string | undefined, link: ProjectLink): string | undefined {
+  return flagGroup || process.env.SECRETFORGE_GROUP || link.group || undefined;
+}
+
+/** `?group=…` query suffix (empty when no group). */
+export function groupQuery(group: string | undefined): string {
+  return group ? `?group=${encodeURIComponent(group)}` : '';
 }

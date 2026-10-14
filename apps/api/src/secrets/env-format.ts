@@ -11,6 +11,13 @@ export const SECRET_KEY_MAX = 255;
 /** Environment names: lowercase slug (dev, staging, prod, or custom). */
 export const ENV_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,29}$/;
 
+/** Group names: lowercase slug, same shape as env names. "" = ungrouped. */
+export const GROUP_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,29}$/;
+
+export function isValidGroupName(name: string): boolean {
+  return name === '' || GROUP_NAME_PATTERN.test(name);
+}
+
 export function isValidSecretKey(key: string): boolean {
   return key.length <= SECRET_KEY_MAX && SECRET_KEY_PATTERN.test(key);
 }

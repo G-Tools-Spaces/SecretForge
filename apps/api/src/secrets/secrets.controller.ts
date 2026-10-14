@@ -9,6 +9,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -55,8 +56,12 @@ export class SecretsController {
 
   @Get('secrets')
   @MinProjectRole('READ')
-  list(@Param('projectId') projectId: string, @Param('env') env: string) {
-    return this.secrets.list(projectId, env);
+  list(
+    @Param('projectId') projectId: string,
+    @Param('env') env: string,
+    @Query('group') group?: string,
+  ) {
+    return this.secrets.list(projectId, env, group);
   }
 
   @Put('secrets/:key')
@@ -68,8 +73,9 @@ export class SecretsController {
     @Param('key') key: string,
     @Body() dto: UpsertSecretDto,
     @Ip() ip: string,
+    @Query('group') group?: string,
   ) {
-    return this.secrets.upsert(projectId, env, key, dto.value, user.id, ip);
+    return this.secrets.upsert(projectId, env, key, dto.value, user.id, ip, group);
   }
 
   @Post('secrets/import')
@@ -80,8 +86,9 @@ export class SecretsController {
     @Param('env') env: string,
     @Body() dto: BulkImportDto,
     @Ip() ip: string,
+    @Query('group') group?: string,
   ) {
-    return this.secrets.bulkImport(projectId, env, dto.content, user.id, ip);
+    return this.secrets.bulkImport(projectId, env, dto.content, user.id, ip, group);
   }
 
   @Get('secrets/export')
@@ -92,8 +99,9 @@ export class SecretsController {
     @Param('projectId') projectId: string,
     @Param('env') env: string,
     @Ip() ip: string,
+    @Query('group') group?: string,
   ) {
-    return this.secrets.export(projectId, env, actorOf(req), ip);
+    return this.secrets.export(projectId, env, actorOf(req), ip, group);
   }
 
   @Get('secrets/:key')
@@ -105,14 +113,20 @@ export class SecretsController {
     @Param('env') env: string,
     @Param('key') key: string,
     @Ip() ip: string,
+    @Query('group') group?: string,
   ) {
-    return this.secrets.reveal(projectId, env, key, actorOf(req), ip);
+    return this.secrets.reveal(projectId, env, key, actorOf(req), ip, group);
   }
 
   @Get('secrets/:key/versions')
   @MinProjectRole('READ')
-  versions(@Param('projectId') projectId: string, @Param('env') env: string, @Param('key') key: string) {
-    return this.secrets.versions(projectId, env, key);
+  versions(
+    @Param('projectId') projectId: string,
+    @Param('env') env: string,
+    @Param('key') key: string,
+    @Query('group') group?: string,
+  ) {
+    return this.secrets.versions(projectId, env, key, group);
   }
 
   @Post('secrets/:key/versions/:version/rollback')
@@ -125,12 +139,13 @@ export class SecretsController {
     @Param('key') key: string,
     @Param('version') version: string,
     @Ip() ip: string,
+    @Query('group') group?: string,
   ) {
     const v = parseInt(version, 10);
     if (Number.isNaN(v) || v < 1) {
       throw new BadRequestException('Invalid version number');
     }
-    return this.secrets.rollback(projectId, env, key, v, user.id, ip);
+    return this.secrets.rollback(projectId, env, key, v, user.id, ip, group);
   }
 
   @Delete('secrets/:key')
@@ -142,7 +157,8 @@ export class SecretsController {
     @Param('env') env: string,
     @Param('key') key: string,
     @Ip() ip: string,
+    @Query('group') group?: string,
   ) {
-    return this.secrets.remove(projectId, env, key, user.id, ip);
+    return this.secrets.remove(projectId, env, key, user.id, ip, group);
   }
 }

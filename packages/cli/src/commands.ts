@@ -7,7 +7,9 @@ import {
   findProjectFile,
   loadCredentials,
   loadProjectLink,
+  groupQuery,
   resolveEnv,
+  resolveGroup,
   saveProjectLink,
 } from './config';
 import { ApiClient, ApiError, requireClient } from './api-client';
@@ -110,7 +112,7 @@ export async function cmdWhoami(): Promise<void> {
 
 // ── forge init ──────────────────────────────────────────────────────────────
 
-export async function cmdInit(projectIdFlag?: string, envFlag?: string): Promise<void> {
+export async function cmdInit(projectIdFlag?: string, envFlag?: string, groupFlag?: string): Promise<void> {
   const client = requireClient();
 
   // Already linked? Confirm before overwriting.
@@ -161,9 +163,15 @@ export async function cmdInit(projectIdFlag?: string, envFlag?: string): Promise
     defaultEnv = answer || envNames[0];
   }
 
-  const file = saveProjectLink({ projectId: projectId!, defaultEnv: defaultEnv || 'dev' });
-  console.log(`Linked project ${projectId} (default env: ${defaultEnv || 'dev'}).`);
-  console.log(`Wrote ${file} — safe to commit (contains only the project ID + default env).`);
+  const file = saveProjectLink({
+    projectId: projectId!,
+    defaultEnv: defaultEnv || 'dev',
+    ...(groupFlag ? { group: groupFlag } : {}),
+  });
+  console.log(
+    `Linked project ${projectId} (default env: ${defaultEnv || 'dev'}${groupFlag ? `, group: ${groupFlag}` : ''}).`,
+  );
+  console.log(`Wrote ${file} — safe to commit (contains only the project ID, default env and group).`);
 }
 
 // ── forge set ────────────────────────────────────────────────────────────────
@@ -172,6 +180,7 @@ export async function cmdSet(
   kvArg: string,
   envFlag: string | undefined,
   projectFlag: string | undefined,
+  groupFlag?: string,
 ): Promise<void> {
   const parsed = parseSetArg(kvArg);
   if (!parsed) {
@@ -184,6 +193,7 @@ export async function cmdSet(
     ? ({ projectId: projectFlag, defaultEnv: 'dev' } as ProjectLink)
     : loadProjectLink();
   const env = resolveEnv(envFlag, link);
+  const group = resolveGroup(groupFlag, link);
 
   // Read the value hidden if it wasn't provided inline.
   let value = parsed.value;
@@ -193,10 +203,10 @@ export async function cmdSet(
 
   try {
     const result = await client.put<{ version: number }>(
-      `/projects/${link.projectId}/envs/${env}/secrets/${parsed.key}`,
+      `/projects/${link.projectId}/envs/${env}/secrets/${parsed.key}${groupQuery(group)}`,
       { value },
     );
-    console.log(`Set ${parsed.key} in ${env} (v${result.version}).`);
+    console.log(`Set ${parsed.key} in ${env}${group ? ` [${group}]` : ''} (v${result.version}).`);
   } catch (err) {
     fail(err);
   }
@@ -207,24 +217,28 @@ export async function cmdSet(
 export async function cmdList(
   envFlag: string | undefined,
   projectFlag: string | undefined,
+  groupFlag?: string,
 ): Promise<void> {
   const client = requireClient();
   const link = projectFlag
     ? ({ projectId: projectFlag, defaultEnv: 'dev' } as ProjectLink)
     : loadProjectLink();
   const env = resolveEnv(envFlag, link);
+  const group = resolveGroup(groupFlag, link); // undefined → list every group
 
   try {
-    const result = await client.get<{ environment: string; secrets: Array<{ key: string; version: number; updatedAt: string }> }>(
-      `/projects/${link.projectId}/envs/${env}/secrets`,
-    );
+    const result = await client.get<{
+      environment: string;
+      secrets: Array<{ group: string; key: string; version: number; updatedAt: string }>;
+    }>(`/projects/${link.projectId}/envs/${env}/secrets${groupQuery(group)}`);
     if (result.secrets.length === 0) {
-      console.log(`No secrets in ${env}.`);
+      console.log(`No secrets in ${env}${group ? ` [${group}]` : ''}.`);
       return;
     }
-    console.log(`Secrets in ${env} (${result.secrets.length}):`);
+    console.log(`Secrets in ${env}${group ? ` [${group}]` : ''} (${result.secrets.length}):`);
     for (const s of result.secrets) {
-      console.log(`  ${s.key.padEnd(32)} v${s.version}  ${s.updatedAt}`);
+      const name = !group && s.group ? `${s.group}/${s.key}` : s.key;
+      console.log(`  ${name.padEnd(32)} v${s.version}  ${s.updatedAt}`);
     }
   } catch (err) {
     fail(err);
@@ -241,6 +255,7 @@ export async function cmdRun(
   command: string[],
   envFlag: string | undefined,
   projectFlag: string | undefined,
+  groupFlag?: string,
 ): Promise<void> {
   if (command.length === 0) {
     console.error('Usage: forge run --env dev -- <command> [args...]');
@@ -252,16 +267,17 @@ export async function cmdRun(
     ? ({ projectId: projectFlag, defaultEnv: 'dev' } as ProjectLink)
     : loadProjectLink();
   const env = resolveEnv(envFlag, link);
+  const group = resolveGroup(groupFlag, link);
 
   let secrets: Record<string, string>;
   try {
     const result = await client.get<{ values: Record<string, string> }>(
-      `/projects/${link.projectId}/envs/${env}/secrets/export`,
+      `/projects/${link.projectId}/envs/${env}/secrets/export${groupQuery(group)}`,
     );
     secrets = result.values;
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
-      console.error(`No secrets found in environment "${env}".`);
+      console.error(`No secrets found in environment "${env}"${group ? ` (group "${group}")` : ''}.`);
       process.exit(1);
     }
     fail(err);
@@ -297,22 +313,24 @@ export async function cmdPull(
   envFlag: string | undefined,
   projectFlag: string | undefined,
   stdoutFlag: boolean,
+  groupFlag?: string,
 ): Promise<void> {
   const client = requireClient();
   const link = projectFlag
     ? ({ projectId: projectFlag, defaultEnv: 'dev' } as ProjectLink)
     : loadProjectLink();
   const env = resolveEnv(envFlag, link);
+  const group = resolveGroup(groupFlag, link);
 
   let values: Record<string, string>;
   try {
     const result = await client.get<{ values: Record<string, string> }>(
-      `/projects/${link.projectId}/envs/${env}/secrets/export`,
+      `/projects/${link.projectId}/envs/${env}/secrets/export${groupQuery(group)}`,
     );
     values = result.values;
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
-      console.error(`No secrets found in environment "${env}".`);
+      console.error(`No secrets found in environment "${env}"${group ? ` (group "${group}")` : ''}.`);
       process.exit(1);
     }
     fail(err);
@@ -338,6 +356,7 @@ export async function cmdImport(
   fileArg: string | undefined,
   envFlag: string | undefined,
   projectFlag: string | undefined,
+  groupFlag?: string,
 ): Promise<void> {
   const file = fileArg ?? '.env';
   if (!existsSync(file)) {
@@ -352,14 +371,15 @@ export async function cmdImport(
     ? ({ projectId: projectFlag, defaultEnv: 'dev' } as ProjectLink)
     : loadProjectLink();
   const env = resolveEnv(envFlag, link);
+  const group = resolveGroup(groupFlag, link);
 
   try {
     const result = await client.post<{ imported: number; created: number; updated: number; keys: string[] }>(
-      `/projects/${link.projectId}/envs/${env}/secrets/import`,
+      `/projects/${link.projectId}/envs/${env}/secrets/import${groupQuery(group)}`,
       { content },
     );
     console.log(
-      `Imported ${result.imported} secrets into ${env} (${result.created} created, ${result.updated} updated).`,
+      `Imported ${result.imported} secrets into ${env}${group ? ` [${group}]` : ''} (${result.created} created, ${result.updated} updated).`,
     );
     console.log(`Keys: ${result.keys.join(', ')}`);
     console.log('⚠  Now rotate any secrets previously shared over chat/email.');

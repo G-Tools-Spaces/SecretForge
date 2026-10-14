@@ -9,6 +9,7 @@ import { ProjectShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
 import { PageHeader, ErrorState, Modal } from '@/components/ui';
 import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/Confirm';
 
 /**
  * Service tokens (Phase 6): read-only, single-environment, expiring,
@@ -19,6 +20,7 @@ export default function TokensPage() {
   const router = useRouter();
   const { user, loading } = useUser();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [project, setProject] = useState<Project | null>(null);
   const [tokens, setTokens] = useState<ServiceTokenInfo[]>([]);
@@ -86,7 +88,13 @@ export default function TokensPage() {
   };
 
   const revoke = async (t: ServiceTokenInfo) => {
-    if (!confirm(`Revoke token "${t.name}" (${t.environment})? Anything using it will lose access immediately.`)) return;
+    const ok = await confirm({
+      title: 'Revoke token',
+      message: `Revoke token "${t.name}" (${t.environment})? Anything using it will lose access immediately.`,
+      confirmLabel: 'Revoke',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api(`/projects/${projectId}/tokens/${t.id}`, { method: 'DELETE' });
       toast.show(`Revoked ${t.name}`);

@@ -8,6 +8,7 @@ import { ProjectShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
 import { PageHeader, Loading, ErrorState, Modal } from '@/components/ui';
 import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/Confirm';
 
 interface Member {
   id: string;
@@ -32,6 +33,7 @@ export default function MembersPage() {
   const router = useRouter();
   const { user, loading } = useUser();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [project, setProject] = useState<Project | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -107,7 +109,13 @@ export default function MembersPage() {
   };
 
   const removeMember = async (userId: string, email: string) => {
-    if (!confirm(`Remove ${email} from this project?`)) return;
+    const ok = await confirm({
+      title: 'Remove member',
+      message: `Remove ${email} from this project?`,
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api(`/projects/${projectId}/members/${userId}`, { method: 'DELETE' });
       toast.show(`Removed ${email}`);

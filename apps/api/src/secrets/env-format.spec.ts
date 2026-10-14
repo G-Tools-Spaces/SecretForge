@@ -1,4 +1,10 @@
-import { formatEnvContent, isValidEnvName, isValidSecretKey, parseEnvContent } from './env-format';
+import {
+  formatEnvContent,
+  isValidEnvName,
+  isValidGroupName,
+  isValidSecretKey,
+  parseEnvContent,
+} from './env-format';
 
 describe('env-format helpers', () => {
   describe('isValidSecretKey', () => {
@@ -31,6 +37,22 @@ describe('env-format helpers', () => {
       expect(isValidEnvName('-dev')).toBe(false);
       expect(isValidEnvName('')).toBe(false);
       expect(isValidEnvName('a'.repeat(31))).toBe(false);
+    });
+  });
+
+  describe('isValidGroupName', () => {
+    it('accepts "" (ungrouped) and lowercase slugs', () => {
+      expect(isValidGroupName('')).toBe(true);
+      expect(isValidGroupName('backend')).toBe(true);
+      expect(isValidGroupName('frontend')).toBe(true);
+      expect(isValidGroupName('eu-prod-2')).toBe(true);
+    });
+
+    it('rejects bad group names', () => {
+      expect(isValidGroupName('Backend')).toBe(false);
+      expect(isValidGroupName('-backend')).toBe(false);
+      expect(isValidGroupName('backend_2')).toBe(false);
+      expect(isValidGroupName('a'.repeat(31))).toBe(false);
     });
   });
 

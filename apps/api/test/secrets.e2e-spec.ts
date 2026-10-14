@@ -302,6 +302,68 @@ describe('Secrets (e2e)', () => {
     expect(res.body.created).toBe(0);
   });
 
+  // ── Groups (frontend/backend inside one environment) ───────────────────────
+
+  it('same key can live in different groups without colliding', async () => {
+    for (const [group, value] of [['backend', 'be-8080'], ['frontend', 'fe-3000']]) {
+      const res = await request(app.getHttpServer())
+        .put(`/projects/${projectId}/envs/dev/secrets/PORT?group=${group}`)
+        .set('Authorization', `Bearer ${writeToken}`)
+        .send({ value });
+      expect(res.status).toBe(200);
+      expect(res.body.version).toBe(1);
+    }
+    for (const [group, value] of [['backend', 'be-8080'], ['frontend', 'fe-3000']]) {
+      const res = await request(app.getHttpServer())
+        .get(`/projects/${projectId}/envs/dev/secrets/PORT?group=${group}`)
+        .set('Authorization', `Bearer ${readToken}`);
+      expect(res.body.value).toBe(value);
+    }
+  });
+
+  it('list returns all groups, or one when filtered; export is per group', async () => {
+    const all = await request(app.getHttpServer())
+      .get(`/projects/${projectId}/envs/dev/secrets`)
+      .set('Authorization', `Bearer ${readToken}`);
+    const groups = new Set(all.body.secrets.map((x: { group: string }) => x.group));
+    expect(groups).toEqual(new Set(['', 'backend', 'frontend']));
+
+    const be = await request(app.getHttpServer())
+      .get(`/projects/${projectId}/envs/dev/secrets?group=backend`)
+      .set('Authorization', `Bearer ${readToken}`);
+    expect(be.body.secrets.map((x: { key: string }) => x.key)).toEqual(['PORT']);
+
+    const exp = await request(app.getHttpServer())
+      .get(`/projects/${projectId}/envs/dev/secrets/export?group=frontend`)
+      .set('Authorization', `Bearer ${readToken}`);
+    expect(exp.body.values).toEqual({ PORT: 'fe-3000' });
+  });
+
+  it('ungrouped ops never see grouped secrets', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/projects/${projectId}/envs/dev/secrets/PORT`)
+      .set('Authorization', `Bearer ${readToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('imports .env content into a group', async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/projects/${projectId}/envs/staging/secrets/import?group=backend`)
+      .set('Authorization', `Bearer ${writeToken}`)
+      .send({ content: 'REDIS_URL=redis://grouped:6379' });
+    expect(res.status).toBe(201);
+    expect(res.body.created).toBe(1); // not an update of the ungrouped REDIS_URL
+    expect(res.body.group).toBe('backend');
+  });
+
+  it('rejects invalid group names', async () => {
+    const res = await request(app.getHttpServer())
+      .put(`/projects/${projectId}/envs/dev/secrets/X?group=Bad%20Group`)
+      .set('Authorization', `Bearer ${writeToken}`)
+      .send({ value: 'v' });
+    expect(res.status).toBe(400);
+  });
+
   it('READ cannot import', async () => {
     const res = await request(app.getHttpServer())
       .post(`/projects/${projectId}/envs/staging/secrets/import`)

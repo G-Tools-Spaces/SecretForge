@@ -204,6 +204,8 @@ model Environment {
 model Secret {
   id             String    @id @default(cuid())
   environmentId  String
+  // Optional grouping inside an environment (e.g. "frontend", "backend"). "" = ungrouped.
+  group          String    @default("")
   key            String // e.g. STRIPE_SECRET_KEY — key NAMES are safe to display/audit
   encryptedValue String // base64 AES-256-GCM ciphertext
   iv             String // base64, unique per write
@@ -217,7 +219,7 @@ model Secret {
   environment Environment     @relation(fields: [environmentId], references: [id], onDelete: Cascade)
   versions    SecretVersion[]
 
-  @@unique([environmentId, key])
+  @@unique([environmentId, group, key])
   @@index([environmentId])
 }
 

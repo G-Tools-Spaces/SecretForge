@@ -49,15 +49,17 @@ program
   .description('link this directory to a project (writes .secretforge.json)')
   .option('-p, --project <id>', 'project ID (skips the interactive picker)')
   .option('-e, --env <env>', 'default environment (dev/staging/prod)')
-  .action((opts) => cmdInit(opts.project, opts.env));
+  .option('-g, --group <group>', 'secret group for this directory (e.g. frontend, backend)')
+  .action((opts) => cmdInit(opts.project, opts.env, opts.group));
 
 program
   .command('set <KEY[=value]>')
   .description('create or update a secret (prompts for the value if omitted)')
   .option('-e, --env <env>', 'environment (default: project default, then "dev")')
   .option('-p, --project <id>', 'project ID (overrides .secretforge.json)')
-  .action((kv: string, opts: { env?: string; project?: string }) =>
-    cmdSet(kv, opts.env, opts.project),
+  .option('-g, --group <group>', 'secret group (e.g. frontend, backend; default: from .secretforge.json)')
+  .action((kv: string, opts: { env?: string; project?: string; group?: string }) =>
+    cmdSet(kv, opts.env, opts.project, opts.group),
   );
 
 program
@@ -65,17 +67,19 @@ program
   .description('list secret keys for an environment (values are never shown)')
   .option('-e, --env <env>', 'environment')
   .option('-p, --project <id>', 'project ID')
-  .action((opts: { env?: string; project?: string }) => cmdList(opts.env, opts.project));
+  .option('-g, --group <group>', 'secret group (e.g. frontend, backend; default: from .secretforge.json)')
+  .action((opts: { env?: string; project?: string; group?: string }) => cmdList(opts.env, opts.project, opts.group));
 
 program
   .command('run <command...>')
   .description('run a command with secrets injected into its environment')
   .option('-e, --env <env>', 'environment')
   .option('-p, --project <id>', 'project ID')
+  .option('-g, --group <group>', 'secret group (e.g. frontend, backend; default: from .secretforge.json)')
   .allowUnknownOption(true)
-  .action((commandArgs: string[], opts: { env?: string; project?: string }) => {
+  .action((commandArgs: string[], opts: { env?: string; project?: string; group?: string }) => {
     // Everything after `--` on the command line lands in commandArgs.
-    cmdRun(commandArgs, opts.env, opts.project);
+    cmdRun(commandArgs, opts.env, opts.project, opts.group);
   });
 
 program
@@ -83,9 +87,10 @@ program
   .description('write secrets to .env (escape hatch — prefer `forge run`)')
   .option('-e, --env <env>', 'environment')
   .option('-p, --project <id>', 'project ID')
+  .option('-g, --group <group>', 'secret group (e.g. frontend, backend; default: from .secretforge.json)')
   .option('-s, --stdout', 'print to stdout instead of writing .env')
-  .action((opts: { env?: string; project?: string; stdout?: boolean }) =>
-    cmdPull(opts.env, opts.project, opts.stdout ?? false),
+  .action((opts: { env?: string; project?: string; stdout?: boolean; group?: string }) =>
+    cmdPull(opts.env, opts.project, opts.stdout ?? false, opts.group),
   );
 
 program
@@ -93,8 +98,9 @@ program
   .description('push an existing .env file into the vault (migration helper)')
   .option('-e, --env <env>', 'environment')
   .option('-p, --project <id>', 'project ID')
-  .action((file: string | undefined, opts: { env?: string; project?: string }) =>
-    cmdImport(file, opts.env, opts.project),
+  .option('-g, --group <group>', 'secret group (e.g. frontend, backend; default: from .secretforge.json)')
+  .action((file: string | undefined, opts: { env?: string; project?: string; group?: string }) =>
+    cmdImport(file, opts.env, opts.project, opts.group),
   );
 
 program.parseAsync(process.argv).catch((err) => {

@@ -57,7 +57,11 @@ def _load_project_link(start: Path) -> Optional[dict]:
     try:
         parsed = json.loads(file.read_text("utf-8"))
         if parsed.get("projectId") and parsed.get("defaultEnv"):
-            return {"projectId": parsed["projectId"], "defaultEnv": parsed["defaultEnv"]}
+            return {
+                "projectId": parsed["projectId"],
+                "defaultEnv": parsed["defaultEnv"],
+                "group": parsed.get("group") or "",
+            }
     except (ValueError, OSError):
         pass  # malformed link file — treated as absent
     return None
@@ -68,6 +72,7 @@ def _resolve(
     env: Optional[str],
     token: Optional[str],
     url: Optional[str],
+    group: Optional[str] = None,
 ) -> tuple:
     link = _load_project_link(Path.cwd())
 
@@ -88,7 +93,10 @@ def _resolve(
     env = env or os.environ.get("SECRETFORGE_ENV") or (link and link["defaultEnv"]) or "dev"
     url = (url or os.environ.get("SECRETFORGE_URL") or DEFAULT_URL).rstrip("/")
 
-    return project_id, env, token, url
+    if group is None:
+        group = os.environ.get("SECRETFORGE_GROUP") or (link and link.get("group")) or ""
+
+    return project_id, env, token, url, group
 
 
 def load(
@@ -96,17 +104,20 @@ def load(
     env: Optional[str] = None,
     token: Optional[str] = None,
     url: Optional[str] = None,
+    group: Optional[str] = None,
 ) -> Dict[str, str]:
-    """Fetch all secrets for the environment as a dict.
+    """Fetch all secrets for the environment (and optional group) as a dict.
 
     Does NOT touch ``os.environ`` — use :func:`config` for that.
     """
-    project_id, env, token, url = _resolve(project_id, env, token, url)
+    project_id, env, token, url, group = _resolve(project_id, env, token, url, group)
 
     endpoint = (
         f"{url}/projects/{urllib.parse.quote(project_id, safe='')}"
         f"/envs/{urllib.parse.quote(env, safe='')}/secrets/export"
     )
+    if group:
+        endpoint += f"?group={urllib.parse.quote(group, safe='')}"
     req = urllib.request.Request(endpoint, headers={"authorization": f"Bearer {token}"})
 
     try:
@@ -132,13 +143,14 @@ def config(
     env: Optional[str] = None,
     token: Optional[str] = None,
     url: Optional[str] = None,
+    group: Optional[str] = None,
 ) -> Dict[str, str]:
     """Fetch secrets and merge them into ``os.environ``.
 
     Existing environment variables win — the real environment always
     overrides the vault. Returns the loaded values.
     """
-    values = load(project_id=project_id, env=env, token=token, url=url)
+    values = load(project_id=project_id, env=env, token=token, url=url, group=group)
     for key, value in values.items():
         os.environ.setdefault(key, value)
     return values

@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { api, Project, SecretRow } from '@/lib/api';
+import { api, groupQuery, refLabel, Project, SecretRef, SecretRow } from '@/lib/api';
 import { envLabel } from '@/lib/format';
 import { useUser } from '@/lib/useUser';
 import { ProjectShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
 import { PageHeader, ErrorState } from '@/components/ui';
 import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/Confirm';
 
 interface VersionRow {
   version: number;
@@ -25,11 +26,12 @@ export default function VersionsPage() {
   const router = useRouter();
   const { user, loading } = useUser();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [project, setProject] = useState<Project | null>(null);
   const [env, setEnv] = useState('dev');
   const [secrets, setSecrets] = useState<SecretRow[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<SecretRef | null>(null);
   const [versions, setVersions] = useState<VersionRow[]>([]);
   const [currentVersion, setCurrentVersion] = useState(0);
   const [busy, setBusy] = useState(true);
@@ -67,11 +69,11 @@ export default function VersionsPage() {
   }, [user, load]);
 
   const loadVersions = useCallback(
-    async (key: string) => {
+    async ({ group, key }: SecretRef) => {
       setBusyVersions(true);
       try {
         const v = await api<{ currentVersion: number; versions: VersionRow[] }>(
-          `/projects/${projectId}/envs/${env}/secrets/${key}/versions`,
+          `/projects/${projectId}/envs/${env}/secrets/${key}/versions${groupQuery(group)}`,
         );
         setVersions(v.versions);
         setCurrentVersion(v.currentVersion);
@@ -89,16 +91,22 @@ export default function VersionsPage() {
   }, [selected, loadVersions]);
 
   const isAdmin = project?.yourRole === 'ADMIN';
+  const isSelected = (s: SecretRef) => selected?.group === s.group && selected?.key === s.key;
 
-  const rollback = async (key: string, version: number) => {
-    if (!confirm(`Roll back ${key} to v${version}? A new version with the old value will be created.`)) return;
+  const rollback = async ({ group, key }: SecretRef, version: number) => {
+    const ok = await confirm({
+      title: 'Roll back secret',
+      message: `Roll back ${refLabel({ group, key })} to v${version}? A new version with the old value will be created.`,
+      confirmLabel: 'Roll back',
+    });
+    if (!ok) return;
     try {
       const res = await api<{ version: number }>(
-        `/projects/${projectId}/envs/${env}/secrets/${key}/versions/${version}/rollback`,
+        `/projects/${projectId}/envs/${env}/secrets/${key}/versions/${version}/rollback${groupQuery(group)}`,
         { method: 'POST' },
       );
-      toast.show(`Rolled back ${key} to v${version} (now v${res.version})`);
-      loadVersions(key);
+      toast.show(`Rolled back ${refLabel({ group, key })} to v${version} (now v${res.version})`);
+      loadVersions({ group, key });
       load();
     } catch (err) {
       toast.show(err instanceof Error ? err.message : 'Rollback failed', 'error');
@@ -176,14 +184,14 @@ export default function VersionsPage() {
                 <div
                   key={s.id}
                   className="row"
-                  onClick={() => setSelected(s.key)}
+                  onClick={() => setSelected({ group: s.group, key: s.key })}
                   style={{
                     alignItems: 'center',
                     gap: 10,
                     cursor: 'pointer',
-                    background: selected === s.key ? 'var(--surface-hover)' : undefined,
+                    background: isSelected(s) ? 'var(--surface-hover)' : undefined,
                     borderLeft:
-                      selected === s.key ? '2px solid var(--accent)' : '2px solid transparent',
+                      isSelected(s) ? '2px solid var(--accent)' : '2px solid transparent',
                   }}
                 >
                   <span
@@ -192,13 +200,13 @@ export default function VersionsPage() {
                       flex: 1,
                       minWidth: 0,
                       fontSize: 13,
-                      color: selected === s.key ? 'var(--accent-soft)' : 'var(--text-2)',
+                      color: isSelected(s) ? 'var(--accent-soft)' : 'var(--text-2)',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {s.key}
+                    {refLabel(s)}
                   </span>
                   <span className="muted" style={{ fontSize: 12, flex: '0 0 auto' }}>
                     v{s.version}
@@ -211,7 +219,7 @@ export default function VersionsPage() {
           {/* Version timeline for the selected key */}
           <section className="panel">
             <div className="panel-header">
-              <h2>{selected ? `History — ${selected}` : 'History'}</h2>
+              <h2>{selected ? `History — ${refLabel(selected)}` : 'History'}</h2>
               {selected && (
                 <span className="hint" style={{ marginLeft: 'auto' }}>
                   current: v{currentVersion}

@@ -3,9 +3,11 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import {
   findProjectFile,
+  groupQuery,
   loadProjectLink,
-  saveProjectLink,
   resolveEnv,
+  resolveGroup,
+  saveProjectLink,
   PROJECT_FILE_NAME,
 } from './config';
 import { formatEnvFile, mergeEnv, parseSetArg } from './env-file';
@@ -54,11 +56,42 @@ describe('config: project link file', () => {
     expect(() => loadProjectLink(dir)).toThrow(/malformed/);
   });
 
-  it('never stores anything except projectId + defaultEnv in the link file', () => {
+  it('stores only projectId + defaultEnv when no group is set', () => {
     const file = saveProjectLink({ projectId: 'prj_123', defaultEnv: 'dev' }, dir);
     const raw = require('fs').readFileSync(file, 'utf8');
     const parsed = JSON.parse(raw);
     expect(Object.keys(parsed).sort()).toEqual(['defaultEnv', 'projectId']);
+  });
+
+  it('stores the group in the link file when one is set', () => {
+    const file = saveProjectLink({ projectId: 'prj_123', defaultEnv: 'dev', group: 'backend' }, dir);
+    const link = loadProjectLink(dir);
+    expect(link).toEqual({ projectId: 'prj_123', defaultEnv: 'dev', group: 'backend' });
+    const raw = JSON.parse(require('fs').readFileSync(file, 'utf8'));
+    expect(raw.group).toBe('backend');
+  });
+});
+
+describe('config: resolveGroup + groupQuery', () => {
+  const link = { projectId: 'p', defaultEnv: 'dev' };
+  const groupedLink = { projectId: 'p', defaultEnv: 'dev', group: 'backend' };
+
+  it('resolves --group flag > SECRETFORGE_GROUP > link.group > undefined', () => {
+    expect(resolveGroup('frontend', groupedLink)).toBe('frontend');
+
+    process.env.SECRETFORGE_GROUP = 'api';
+    expect(resolveGroup(undefined, groupedLink)).toBe('api');
+    delete process.env.SECRETFORGE_GROUP;
+
+    expect(resolveGroup(undefined, groupedLink)).toBe('backend');
+    expect(resolveGroup(undefined, link)).toBeUndefined();
+  });
+
+  it('groupQuery returns a query suffix for a group and "" otherwise', () => {
+    expect(groupQuery('backend')).toBe('?group=backend');
+    expect(groupQuery('api gateway')).toBe('?group=api%20gateway');
+    expect(groupQuery(undefined)).toBe('');
+    expect(groupQuery('')).toBe('');
   });
 });
 
