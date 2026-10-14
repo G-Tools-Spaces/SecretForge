@@ -29,7 +29,8 @@ export default function SecretsPage() {
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [group, setGroup] = useState<string>(ALL); // ALL | '' (ungrouped) | group name
+  const [group, setGroup] = useState<string>(ALL); // ALL | group name
+  const [view, setView] = useState<'secrets' | 'groups'>('secrets'); // secrets = ungrouped, groups = group list/detail
   // Empty groups created in the UI — persisted to localStorage so they survive reloads.
   const [extraGroups, setExtraGroups] = useState<string[]>([]);
   const [newGroup, setNewGroup] = useState('');
@@ -86,8 +87,13 @@ export default function SecretsPage() {
     .filter((g) => g !== '')
     .sort();
   const hasUngrouped = secrets.some((s) => s.group === '');
-  // Default view (no group selected) shows ungrouped secrets; clicking a group shows only that group.
-  const visible = group === ALL ? secrets.filter((s) => s.group === '') : secrets.filter((s) => s.group === group);
+  // Secrets tab → ungrouped only; Groups tab → group list, then group detail on click.
+  const visible =
+    view === 'secrets'
+      ? secrets.filter((s) => s.group === '')
+      : group === ALL
+        ? []
+        : secrets.filter((s) => s.group === group);
   const idOf = (s: SecretRow) => s.id;
 
   const checkGroup = (g: string): boolean => {
@@ -187,8 +193,8 @@ export default function SecretsPage() {
   };
 
   const openAdd = () => {
-    // Inside a group → prefill that group; default view → ungrouped.
-    setNewGroup(group === ALL ? '' : group);
+    // Groups tab detail → prefill that group; Secrets tab → ungrouped.
+    setNewGroup(view === 'groups' && group !== ALL ? group : '');
     setShowAdd(true);
   };
 
@@ -300,56 +306,74 @@ export default function SecretsPage() {
           )}
         </div>
 
-        {named.length > 0 && (
-          <nav aria-label="Groups" style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-            <button
-              onClick={() => setGroup(ALL)}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                fontSize: 13,
-                color: group === ALL ? 'var(--text)' : 'var(--text-3)',
-                fontWeight: group === ALL ? 600 : 400,
-              }}
-            >
-              ungrouped
+        <div className="segmented" style={{ marginTop: 8 }} aria-label="View">
+          <button aria-pressed={view === 'secrets'} onClick={() => { setView('secrets'); setGroup(ALL); }}>
+            Secrets
+          </button>
+          <button aria-pressed={view === 'groups'} onClick={() => setView('groups')}>
+            Groups
+          </button>
+        </div>
+
+        {view === 'groups' && group === ALL && (
+          <div className="panel" style={{ marginTop: 8 }}>
+            {named.length === 0 ? (
+              <div className="empty" style={{ padding: '40px 18px' }}>
+                <p style={{ margin: 0, color: 'var(--text-3)' }}>No groups yet. Create one to organize secrets per service.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid' }}>
+                {named.map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setGroup(g)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      background: 'none',
+                      border: 'none',
+                      borderBottom: '1px solid var(--border)',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      color: 'var(--text)',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <span>{g}</span>
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {secrets.filter((s) => s.group === g).length} secrets →
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {view === 'groups' && group !== ALL && (
+          <div style={{ marginTop: 8 }}>
+            <button className="btn btn-sm" onClick={() => setGroup(ALL)}>
+              ← Back to groups
             </button>
-            {named.map((g) => (
-              <Fragment key={g}>
-                <span style={{ color: 'var(--text-4)' }}>/</span>
-                <button
-                  onClick={() => setGroup(g)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                    fontSize: 13,
-                    color: group === g ? 'var(--text)' : 'var(--text-3)',
-                    fontWeight: group === g ? 600 : 400,
-                  }}
-                >
-                  {g}
-                </button>
-              </Fragment>
-            ))}
-          </nav>
+          </div>
         )}
 
         {error && <ErrorState message={error} onRetry={load} />}
         {busy && !error && <Loading />}
 
-        {!busy && !error && visible.length === 0 && (
+        {!busy && !error && visible.length === 0 && !(view === 'groups' && group === ALL) && (
           <div className="panel">
             <div className="empty" style={{ padding: '56px 18px' }}>
               <h2 style={{ margin: '0 0 6px', fontSize: 16, color: 'var(--text)' }}>
-                {group !== ALL ? `No secrets in ${group}` : `No secrets in ${envLabel(env)}`}
+                {view === 'groups' && group !== ALL
+                  ? `No secrets in ${group}`
+                  : `No secrets in ${envLabel(env)}`}
               </h2>
               <p style={{ margin: '0 0 16px' }}>
                 {canWrite
-                  ? group !== ALL
+                  ? view === 'groups' && group !== ALL
                     ? `Add a secret to the ${group} group.`
                     : 'Add a secret or paste your existing .env file to import.'
                   : 'Ask a project admin or writer to add secrets.'}
