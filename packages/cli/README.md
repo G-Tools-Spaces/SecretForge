@@ -28,6 +28,8 @@ export SECRETFORGE_URL="https://your-api.example.com"
 
 # 2. Log in (once per machine; tokens stored in ~/.secretforge)
 forge login
+#    If your account has two-factor authentication enabled, the CLI
+#    prompts for the 6-digit authenticator code after your password.
 
 # 3. Link your repo to a project (writes .secretforge.json — safe to commit)
 cd your-app
