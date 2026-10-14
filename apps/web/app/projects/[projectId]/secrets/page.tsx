@@ -30,7 +30,15 @@ export default function SecretsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [group, setGroup] = useState<string>(ALL); // ALL | '' (ungrouped) | group name
-  const [extraGroups, setExtraGroups] = useState<string[]>([]); // created in UI, no secrets yet
+  // Empty groups created in the UI — persisted to localStorage so they survive reloads.
+  const [extraGroups, setExtraGroups] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      return JSON.parse(localStorage.getItem(`sf-groups-${projectId}-${env}`) ?? '[]');
+    } catch {
+      return [];
+    }
+  });
   const [newGroup, setNewGroup] = useState('');
   const [showGroup, setShowGroup] = useState(false);
   const [groupDraft, setGroupDraft] = useState('');
@@ -166,7 +174,11 @@ export default function SecretsPage() {
   const createGroup = () => {
     const g = groupDraft.trim();
     if (!g || !checkGroup(g)) return;
-    setExtraGroups((x) => (x.includes(g) ? x : [...x, g]));
+    setExtraGroups((x) => {
+      const next = x.includes(g) ? x : [...x, g];
+      localStorage.setItem(`sf-groups-${projectId}-${env}`, JSON.stringify(next));
+      return next;
+    });
     setGroup(g);
     setShowGroup(false);
   };
@@ -264,8 +276,12 @@ export default function SecretsPage() {
                 onClick={() => {
                   setEnv(e.name);
                   setGroup(ALL);
-                  setExtraGroups([]);
                   setRevealed({});
+                  try {
+                    setExtraGroups(JSON.parse(localStorage.getItem(`sf-groups-${projectId}-${e.name}`) ?? '[]'));
+                  } catch {
+                    setExtraGroups([]);
+                  }
                 }}
               >
                 {envLabel(e.name)}
