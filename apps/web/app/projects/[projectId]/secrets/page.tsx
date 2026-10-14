@@ -243,6 +243,16 @@ export default function SecretsPage() {
                     <Icon name="upload" size={14} strokeWidth={2.2} />
                     Import .env
                   </button>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      setGroupDraft('');
+                      setShowGroup(true);
+                    }}
+                  >
+                    <Icon name="plus" size={14} strokeWidth={2.2} />
+                    Create group
+                  </button>
                   <button className="btn btn-primary" onClick={openAdd}>
                     <Icon name="plus" size={14} strokeWidth={2.2} />
                     Add secret
@@ -270,31 +280,23 @@ export default function SecretsPage() {
           ))}
         </div>
 
-        <div className="segmented" style={{ marginTop: 8 }} aria-label="Groups">
-          <button aria-pressed={group === ALL} onClick={() => setGroup(ALL)}>
-            All
-          </button>
-          {hasUngrouped && (
-            <button aria-pressed={group === ''} onClick={() => setGroup('')}>
-              Ungrouped
+        {(named.length > 0 || hasUngrouped) && (
+          <div className="segmented" style={{ marginTop: 8 }} aria-label="Groups">
+            <button aria-pressed={group === ALL} onClick={() => setGroup(ALL)}>
+              All
             </button>
-          )}
-          {named.map((g) => (
-            <button key={g} aria-pressed={group === g} onClick={() => setGroup(g)}>
-              {g}
-            </button>
-          ))}
-          {canWrite && (
-            <button
-              onClick={() => {
-                setGroupDraft('');
-                setShowGroup(true);
-              }}
-            >
-              + New group
-            </button>
-          )}
-        </div>
+            {hasUngrouped && (
+              <button aria-pressed={group === ''} onClick={() => setGroup('')}>
+                Ungrouped
+              </button>
+            )}
+            {named.map((g) => (
+              <button key={g} aria-pressed={group === g} onClick={() => setGroup(g)}>
+                {g}
+              </button>
+            ))}
+          </div>
+        )}
 
         {error && <ErrorState message={error} onRetry={load} />}
         {busy && !error && <Loading />}
