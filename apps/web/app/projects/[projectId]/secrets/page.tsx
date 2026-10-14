@@ -75,7 +75,8 @@ export default function SecretsPage() {
     .filter((g) => g !== '')
     .sort();
   const hasUngrouped = secrets.some((s) => s.group === '');
-  const visible = group === ALL ? secrets : secrets.filter((s) => s.group === group);
+  // Default view (no group selected) shows ungrouped secrets; clicking a group shows only that group.
+  const visible = group === ALL ? secrets.filter((s) => s.group === '') : secrets.filter((s) => s.group === group);
   const idOf = (s: SecretRow) => s.id;
 
   const checkGroup = (g: string): boolean => {
@@ -171,6 +172,7 @@ export default function SecretsPage() {
   };
 
   const openAdd = () => {
+    // Inside a group → prefill that group; default view → ungrouped.
     setNewGroup(group === ALL ? '' : group);
     setShowAdd(true);
   };
@@ -243,16 +245,6 @@ export default function SecretsPage() {
                     <Icon name="upload" size={14} strokeWidth={2.2} />
                     Import .env
                   </button>
-                  <button
-                    className="btn"
-                    onClick={() => {
-                      setGroupDraft('');
-                      setShowGroup(true);
-                    }}
-                  >
-                    <Icon name="plus" size={14} strokeWidth={2.2} />
-                    Create group
-                  </button>
                   <button className="btn btn-primary" onClick={openAdd}>
                     <Icon name="plus" size={14} strokeWidth={2.2} />
                     Add secret
@@ -263,38 +255,52 @@ export default function SecretsPage() {
           }
         />
 
-        <div className="segmented">
-          {project.environments.map((e) => (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div className="segmented">
+            {project.environments.map((e) => (
+              <button
+                key={e.id}
+                aria-pressed={env === e.name}
+                onClick={() => {
+                  setEnv(e.name);
+                  setGroup(ALL);
+                  setExtraGroups([]);
+                  setRevealed({});
+                }}
+              >
+                {envLabel(e.name)}
+              </button>
+            ))}
+          </div>
+          {canWrite && (
             <button
-              key={e.id}
-              aria-pressed={env === e.name}
+              className="btn"
               onClick={() => {
-                setEnv(e.name);
-                setGroup(ALL);
-                setExtraGroups([]);
-                setRevealed({});
+                setGroupDraft('');
+                setShowGroup(true);
               }}
             >
-              {envLabel(e.name)}
+              <Icon name="plus" size={14} strokeWidth={2.2} />
+              Create group
             </button>
-          ))}
+          )}
         </div>
 
-        {(named.length > 0 || hasUngrouped) && (
+        {named.length > 0 && (
           <div className="segmented" style={{ marginTop: 8 }} aria-label="Groups">
-            <button aria-pressed={group === ALL} onClick={() => setGroup(ALL)}>
-              All
-            </button>
-            {hasUngrouped && (
-              <button aria-pressed={group === ''} onClick={() => setGroup('')}>
-                Ungrouped
-              </button>
-            )}
             {named.map((g) => (
               <button key={g} aria-pressed={group === g} onClick={() => setGroup(g)}>
                 {g}
               </button>
             ))}
+          </div>
+        )}
+
+        {group !== ALL && (
+          <div style={{ marginTop: 8 }}>
+            <button className="btn btn-sm" onClick={() => setGroup(ALL)}>
+              ← Back to ungrouped
+            </button>
           </div>
         )}
 
@@ -304,10 +310,14 @@ export default function SecretsPage() {
         {!busy && !error && visible.length === 0 && (
           <div className="panel">
             <div className="empty" style={{ padding: '56px 18px' }}>
-              <h2 style={{ margin: '0 0 6px', fontSize: 16, color: 'var(--text)' }}>No secrets in {envLabel(env)}{group !== ALL && group !== '' ? ` / ${group}` : ''}</h2>
+              <h2 style={{ margin: '0 0 6px', fontSize: 16, color: 'var(--text)' }}>
+                {group !== ALL ? `No secrets in ${group}` : `No secrets in ${envLabel(env)}`}
+              </h2>
               <p style={{ margin: '0 0 16px' }}>
                 {canWrite
-                  ? 'Add a secret or paste your existing .env file to import.'
+                  ? group !== ALL
+                    ? `Add a secret to the ${group} group.`
+                    : 'Add a secret or paste your existing .env file to import.'
                   : 'Ask a project admin or writer to add secrets.'}
               </p>
               {canWrite && (
@@ -326,7 +336,6 @@ export default function SecretsPage() {
               <thead>
                 <tr>
                   <th style={{ width: '28%' }}>Key</th>
-                  {group === ALL && <th style={{ width: 110 }}>Group</th>}
                   <th>Value</th>
                   <th style={{ width: 70 }}>Version</th>
                   <th style={{ width: 120 }}>Updated</th>
@@ -339,9 +348,6 @@ export default function SecretsPage() {
                     <td className="mono" style={{ color: 'var(--accent-soft)' }}>
                       {s.key}
                     </td>
-                    {group === ALL && (
-                      <td className="muted">{s.group || '—'}</td>
-                    )}
                     <td>
                       {revealed[idOf(s)] !== undefined ? (
                         <span className="mono" style={{ color: 'var(--text)' }}>
