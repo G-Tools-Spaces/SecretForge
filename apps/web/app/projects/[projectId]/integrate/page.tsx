@@ -49,8 +49,8 @@ npm install -g @gtools-spaces/cli
 # Point it at your server (only if not http://localhost:4000)
 export SECRETFORGE_URL="https://secretforge-api.onrender.com"
 
-# Log in — with 2FA enabled you'll be asked for the
-# 6-digit authenticator code right after your password
+# Log in — opens your browser; works with Google/GitHub
+# sign-in and 2FA (use --password for a terminal prompt)
 forge login
 
 # Link this repo to the project

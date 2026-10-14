@@ -14,6 +14,7 @@ import {
 } from './config';
 import { ApiClient, ApiError, requireClient } from './api-client';
 import { formatEnvFile, mergeEnv, parseSetArg } from './env-file';
+import { browserLogin, exchangeCliCode } from './browser-login';
 
 /** Human-friendly error → exit code mapping. */
 function fail(err: unknown): never {
@@ -32,7 +33,7 @@ function fail(err: unknown): never {
 
 // ── forge login ─────────────────────────────────────────────────────────────
 
-export async function cmdLogin(urlFlag?: string): Promise<void> {
+export async function cmdLogin(urlFlag?: string, opts: { password?: boolean; code?: string } = {}): Promise<void> {
   const rawUrl = urlFlag || process.env.SECRETFORGE_URL || 'http://localhost:4000';
   if (rawUrl.startsWith('sf_')) {
     console.error(
@@ -44,6 +45,23 @@ export async function cmdLogin(urlFlag?: string): Promise<void> {
   }
   const apiUrl = rawUrl.replace(/\/+$/, '');
 
+  // Headless fallback: redeem a code shown by the web approve page.
+  if (opts.code) {
+    console.log(`Logging in to ${apiUrl}`);
+    await exchangeCliCode(apiUrl, opts.code);
+    return;
+  }
+  // Opt-out for password accounts on machines without a browser.
+  if (opts.password) {
+    await passwordLogin(apiUrl);
+    return;
+  }
+  // Default: browser sign-in — works with Google/GitHub and 2FA accounts.
+  await browserLogin(apiUrl);
+}
+
+/** Email + password login (with 2FA prompt) — `forge login --password`. */
+async function passwordLogin(apiUrl: string): Promise<void> {
   console.log(`Logging in to ${apiUrl}`);
   const email = await prompt('Email: ');
   if (!email) {

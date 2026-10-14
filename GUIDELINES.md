@@ -300,10 +300,10 @@ small npm package (`forge` command); it has no other system dependencies.
 
 #### Step 2 — Install the forge CLI
 
-From npm (recommended) — current release is **0.1.5**:
+From npm (recommended) — current release is **0.1.6**:
 
 ```bash
-npm install -g @gtools-spaces/cli        # or pin: @gtools-spaces/cli@0.1.5
+npm install -g @gtools-spaces/cli        # or pin: @gtools-spaces/cli@0.1.6
 ```
 
 Two identical commands are installed: **`forge`** and **`secretforge`** —
@@ -346,13 +346,22 @@ export SECRETFORGE_URL="https://api.your-domain.com"
 > (since 0.1.1) — tokens never go there.
 
 ```bash
-forge login                         # email + password (or service token)
+forge login                         # opens your browser to sign in
 forge whoami                        # verify you're authenticated
 ```
 
-> With **2FA enabled** on your account, `forge login` prompts for the
-> 6-digit authenticator code right after your password (since CLI 0.1.5 —
-> older versions just fail with "Two-factor code required").
+> Since CLI **0.1.6**, `forge login` opens your **browser**: sign in on the
+> web app with **any** method — email + password, Google or GitHub, with
+> 2FA — approve the CLI, and the terminal is logged in automatically. This
+> is the only login that works for **OAuth-only accounts** (they have no
+> password, so the old email+password prompt could never work for them).
+>
+> Fallbacks:
+>
+> - `forge login --password` — classic email + password prompt in the
+>   terminal (asks for the 2FA code when enabled).
+> - `forge login --code <code>` — headless/remote machines: approve in any
+>   browser, then paste the code the page shows.
 
 Credentials are stored in `~/.secretforge/credentials.json`
 (`C:\Users\<you>\.secretforge\credentials.json` on Windows) with

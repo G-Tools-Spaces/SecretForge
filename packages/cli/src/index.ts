@@ -30,9 +30,11 @@ program
 
 program
   .command('login')
-  .description('log in to a SecretForge server (stores tokens in ~/.secretforge)')
+  .description('log in via your browser — works with Google/GitHub and 2FA (stores tokens in ~/.secretforge)')
   .option('-u, --url <url>', 'API URL (defaults to SECRETFORGE_URL or http://localhost:4000)')
-  .action((opts) => cmdLogin(opts.url));
+  .option('--password', 'use an email + password prompt instead of the browser')
+  .option('--code <code>', 'redeem a CLI sign-in code shown by the web app (headless machines)')
+  .action((opts) => cmdLogin(opts.url, { password: opts.password, code: opts.code }));
 
 program
   .command('logout')

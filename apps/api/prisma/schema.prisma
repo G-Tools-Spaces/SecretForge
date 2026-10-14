@@ -61,6 +61,7 @@ model User {
   sentInvites       OrgInvite[] @relation("Inviter")
   oauthAccounts     OAuthAccount[]
   oauthExchangeCodes OAuthExchangeCode[]
+  cliAuthCodes      CliAuthCode[]
 }
 
 /** A linked social identity (Google/GitHub) for a user. */
@@ -103,6 +104,26 @@ model OAuthExchangeCode {
   // When set, the code cannot be redeemed until a valid TOTP code for this
   // user is presented (2FA-enabled social sign-in). Null = no second factor.
   pendingTotpUserId String?
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/**
+ * Single-use code for browser-based CLI login (`forge login`): the web app
+ * mints it after the signed-in user approves, the CLI exchanges it for a
+ * token pair. This lets OAuth-only accounts (no password) and 2FA accounts
+ * use the CLI. Stored as SHA-256 hash, 5-minute TTL (long enough to paste
+ * manually on headless machines).
+ */
+model CliAuthCode {
+  id         String    @id @default(cuid())
+  codeHash   String    @unique
+  userId     String
   expiresAt  DateTime
   consumedAt DateTime?
   createdAt  DateTime  @default(now())

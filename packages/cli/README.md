@@ -28,8 +28,13 @@ export SECRETFORGE_URL="https://your-api.example.com"
 
 # 2. Log in (once per machine; tokens stored in ~/.secretforge)
 forge login
-#    If your account has two-factor authentication enabled, the CLI
-#    prompts for the 6-digit authenticator code after your password.
+#    Opens your browser — sign in with ANY method (email+password,
+#    Google, GitHub — with 2FA) and approve the CLI. This is the only
+#    login that works for OAuth-only accounts (they have no password).
+#    Fallbacks:
+#      forge login --password      email+password prompt (2FA-aware)
+#      forge login --code <code>   headless machines — paste the code
+#                                  shown by the web approve page
 
 # 3. Link your repo to a project (writes .secretforge.json — safe to commit)
 cd your-app
@@ -43,7 +48,7 @@ forge run -- npm run dev
 
 | Command | What it does |
 |---|---|
-| `forge login` | Authenticate with your SecretForge server |
+| `forge login` | Sign in via your browser (Google/GitHub/2FA-friendly; `--password` for a terminal prompt, `--code` for headless) |
 | `forge logout` | Revoke the session and remove stored tokens |
 | `forge whoami` | Show the logged-in user |
 | `forge init` | Link the current directory to a project + default env |

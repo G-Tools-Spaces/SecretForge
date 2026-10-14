@@ -61,6 +61,12 @@ export class OAuthExchangeDto {
   totpCode?: string;
 }
 
+export class CliExchangeDto {
+  @IsString()
+  @MinLength(1)
+  code!: string;
+}
+
 export class TotpCodeDto {
   @IsString()
   @MinLength(6)
