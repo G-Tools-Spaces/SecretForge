@@ -1,6 +1,6 @@
 {
   "name": "@gtools-spaces/cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "forge — the SecretForge CLI. Fetch and inject secrets into your apps; no more .env files.",
   "license": "MIT",
   "keywords": [

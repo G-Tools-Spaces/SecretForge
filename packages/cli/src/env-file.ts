@@ -3,9 +3,14 @@
  */
 
 /** Parse a `KEY=value` CLI argument (split on the FIRST '='). */
+/** Key-only args are allowed — the caller prompts for the value. */
 export function parseSetArg(arg: string): { key: string; value: string } | null {
   const eq = arg.indexOf('=');
-  if (eq <= 0) return null; // no '=' or empty key
+  if (eq === -1) {
+    const key = arg.trim();
+    return key ? { key, value: '' } : null; // key only — prompt for value
+  }
+  if (eq <= 0) return null; // empty key
   return { key: arg.slice(0, eq).trim(), value: arg.slice(eq + 1) };
 }
 

@@ -89,7 +89,8 @@ describe('env-file helpers', () => {
   });
 
   it('parseSetArg rejects input without = or with an empty key', () => {
-    expect(parseSetArg('NO_EQUALS_SIGN')).toBeNull();
+    // Key-only is valid — the caller prompts for the value.
+    expect(parseSetArg('NO_EQUALS_SIGN')).toEqual({ key: 'NO_EQUALS_SIGN', value: '' });
     expect(parseSetArg('=value')).toBeNull();
   });
 

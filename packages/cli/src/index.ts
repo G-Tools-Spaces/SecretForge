@@ -52,7 +52,7 @@ program
   .action((opts) => cmdInit(opts.project, opts.env));
 
 program
-  .command('set <KEY=value>')
+  .command('set <KEY[=value]>')
   .description('create or update a secret (prompts for the value if omitted)')
   .option('-e, --env <env>', 'environment (default: project default, then "dev")')
   .option('-p, --project <id>', 'project ID (overrides .secretforge.json)')
