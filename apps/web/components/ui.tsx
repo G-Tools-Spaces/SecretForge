@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 export function PageHeader({
   title,
   description,
@@ -48,6 +50,44 @@ export function InlineError({ message }: { message: string | null }) {
     <div className="error-box" role="alert">
       {message}
     </div>
+  );
+}
+
+/** Button that shows a centered spinner while an async action runs. */
+export function BusyButton({
+  onClick,
+  disabled,
+  className = 'btn',
+  children,
+  busy: externalBusy,
+}: {
+  onClick: () => Promise<void> | void;
+  disabled?: boolean;
+  className?: string;
+  children: React.ReactNode;
+  busy?: boolean;
+}) {
+  const [internalBusy, setInternalBusy] = useState(false);
+  const busy = externalBusy ?? internalBusy;
+
+  const handle = async () => {
+    if (busy) return;
+    setInternalBusy(true);
+    try {
+      await onClick();
+    } finally {
+      setInternalBusy(false);
+    }
+  };
+
+  return (
+    <button type="button" className={className} onClick={handle} disabled={disabled || busy}>
+      {busy ? (
+        <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} aria-hidden="true" />
+      ) : (
+        children
+      )}
+    </button>
   );
 }
 

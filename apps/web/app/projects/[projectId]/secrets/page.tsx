@@ -7,7 +7,7 @@ import { envLabel } from '@/lib/format';
 import { useUser } from '@/lib/useUser';
 import { ProjectShell } from '@/components/shell/AppShell';
 import { Icon } from '@/components/Icon';
-import { PageHeader, Loading, ErrorState, Modal } from '@/components/ui';
+import { PageHeader, Loading, ErrorState, Modal, BusyButton } from '@/components/ui';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/Confirm';
 
@@ -253,10 +253,10 @@ export default function SecretsPage() {
           description="Values are encrypted at rest (AES-256-GCM) and only decrypted on reveal."
           actions={
             <>
-              <button className="btn" onClick={exportEnv}>
+              <BusyButton className="btn" onClick={exportEnv}>
                 <Icon name="copy" size={14} strokeWidth={2.2} />
                 Copy all
-              </button>
+              </BusyButton>
               {canWrite && (
                 <>
                   <button className="btn" onClick={() => {
@@ -419,9 +419,9 @@ export default function SecretsPage() {
                     <td className="muted">{new Date(s.updatedAt).toLocaleDateString()}</td>
                     <td style={{ textAlign: 'right' }}>
                       {revealed[idOf(s)] === undefined ? (
-                        <button className="btn btn-sm" onClick={() => reveal(s)}>
+                        <BusyButton className="btn btn-sm" onClick={() => reveal(s)}>
                           <Icon name="eye" size={13} /> Reveal
-                        </button>
+                        </BusyButton>
                       ) : (
                         <button
                           className="btn btn-sm"
@@ -444,13 +444,12 @@ export default function SecretsPage() {
                         <Icon name="refresh" size={13} /> History
                       </a>
                       {canAdmin && (
-                        <button
+                        <BusyButton
                           className="btn btn-danger btn-sm"
-                          style={{ marginLeft: 6 }}
                           onClick={() => removeSecret(s)}
                         >
                           <Icon name="trash" size={13} />
-                        </button>
+                        </BusyButton>
                       )}
                     </td>
                   </tr>
@@ -470,9 +469,9 @@ export default function SecretsPage() {
               <button className="btn" onClick={() => setShowGroup(false)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={createGroup} disabled={!groupDraft.trim()}>
+              <BusyButton className="btn btn-primary" onClick={createGroup} disabled={!groupDraft.trim()}>
                 Create group
-              </button>
+              </BusyButton>
             </>
           }
         >
@@ -502,9 +501,9 @@ export default function SecretsPage() {
               <button className="btn" onClick={() => setShowAdd(false)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={addSecret} disabled={!newKey.trim() || !newValue}>
+              <BusyButton className="btn btn-primary" onClick={addSecret} disabled={!newKey.trim() || !newValue}>
                 Save secret
-              </button>
+              </BusyButton>
             </>
           }
         >
@@ -556,9 +555,9 @@ export default function SecretsPage() {
               <button className="btn" onClick={() => setShowImport(false)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={doImport} disabled={!importContent.trim()}>
+              <BusyButton className="btn btn-primary" onClick={doImport} disabled={!importContent.trim()}>
                 Import
-              </button>
+              </BusyButton>
             </>
           }
         >
