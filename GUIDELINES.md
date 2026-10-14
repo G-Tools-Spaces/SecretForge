@@ -300,10 +300,10 @@ small npm package (`forge` command); it has no other system dependencies.
 
 #### Step 2 — Install the forge CLI
 
-From npm (recommended) — current release is **0.1.4**:
+From npm (recommended) — current release is **0.1.5**:
 
 ```bash
-npm install -g @gtools-spaces/cli        # or pin: @gtools-spaces/cli@0.1.4
+npm install -g @gtools-spaces/cli        # or pin: @gtools-spaces/cli@0.1.5
 ```
 
 Two identical commands are installed: **`forge`** and **`secretforge`** —
@@ -349,6 +349,10 @@ export SECRETFORGE_URL="https://api.your-domain.com"
 forge login                         # email + password (or service token)
 forge whoami                        # verify you're authenticated
 ```
+
+> With **2FA enabled** on your account, `forge login` prompts for the
+> 6-digit authenticator code right after your password (since CLI 0.1.5 —
+> older versions just fail with "Two-factor code required").
 
 Credentials are stored in `~/.secretforge/credentials.json`
 (`C:\Users\<you>\.secretforge\credentials.json` on Windows) with

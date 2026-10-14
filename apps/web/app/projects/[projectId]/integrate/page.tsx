@@ -49,6 +49,10 @@ npm install -g @gtools-spaces/cli
 # Point it at your server (only if not http://localhost:4000)
 export SECRETFORGE_URL="https://secretforge-api.onrender.com"
 
+# Log in — with 2FA enabled you'll be asked for the
+# 6-digit authenticator code right after your password
+forge login
+
 # Link this repo to the project
 forge init
 
@@ -65,7 +69,9 @@ forge run --group backend -- npm start   # only that group's secrets`;
   "group": "backend"
 }`;
 
-  const sdk = `// npm i @gtools-spaces/sdk
+  const sdk = `// ⚠️ Not on npm yet — install from a repo checkout:
+//   npm run build -w packages/sdk-node
+//   npm i <your-SecretForge-clone>/packages/sdk-node
 import { config } from '@gtools-spaces/sdk';
 
 // Fetches secrets once at boot and merges them into process.env.
