@@ -53,6 +53,12 @@ export class OAuthExchangeDto {
   @IsString()
   @MinLength(1)
   code!: string;
+
+  /** Present on the second exchange attempt when the account has 2FA enabled. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  totpCode?: string;
 }
 
 export class TotpCodeDto {

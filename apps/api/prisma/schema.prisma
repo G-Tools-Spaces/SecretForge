@@ -100,6 +100,9 @@ model OAuthExchangeCode {
   id         String    @id @default(cuid())
   codeHash   String    @unique
   userId     String
+  // When set, the code cannot be redeemed until a valid TOTP code for this
+  // user is presented (2FA-enabled social sign-in). Null = no second factor.
+  pendingTotpUserId String?
   expiresAt  DateTime
   consumedAt DateTime?
   createdAt  DateTime  @default(now())

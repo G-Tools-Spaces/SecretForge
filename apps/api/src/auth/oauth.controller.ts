@@ -67,7 +67,7 @@ export class OAuthController {
   @HttpCode(200)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   async exchange(@Body() dto: OAuthExchangeDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
-    const result = await this.oauth.exchange(dto.code, ip);
+    const result = await this.oauth.exchange(dto.code, ip, dto.totpCode);
     setRefreshCookie(res, result.refreshToken, 30 * 24 * 60 * 60 * 1000);
     return result;
   }

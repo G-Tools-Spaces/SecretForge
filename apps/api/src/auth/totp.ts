@@ -50,8 +50,8 @@ export function generateTotpSecret(): string {
   return base32Encode(randomBytes(20));
 }
 
-/** RFC 4226 HOTP, SHA-1, 6 digits, dynamic truncation. */
-function hotp(secret: Buffer, counter: number): string {
+/** RFC 4226 HOTP, SHA-1, 6 digits, dynamic truncation. Exported for tests. */
+export function hotp(secret: Buffer, counter: number): string {
   const buf = Buffer.alloc(8);
   buf.writeBigUInt64BE(BigInt(counter));
   const digest = createHmac('sha1', secret).update(buf).digest();

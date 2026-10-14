@@ -52,11 +52,28 @@ export async function cmdLogin(urlFlag?: string): Promise<void> {
   }
   const password = await promptHidden('Password: ');
 
-  const res = await fetch(`${apiUrl}/auth/login`, {
+  let res = await fetch(`${apiUrl}/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
+
+  // 2FA: the API refuses to issue tokens until a TOTP code is provided.
+  if (res.status === 401) {
+    const first = (await res.json().catch(() => null)) as { message?: string; totp_required?: boolean } | null;
+    if (first?.totp_required === true) {
+      const totpCode = await prompt('Two-factor code: ');
+      res = await fetch(`${apiUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password, totpCode }),
+      });
+    } else {
+      console.error(first?.message ?? `Login failed (${res.status})`);
+      process.exit(1);
+    }
+  }
+
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { message?: string } | null;
     console.error(body?.message ?? `Login failed (${res.status})`);

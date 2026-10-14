@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { base32Decode, hotp } from '../src/auth/totp';
 import './setup-e2e';
 
 // Configure both providers before the app (and EnvService) boots.
@@ -65,7 +66,8 @@ describe('OAuth (e2e)', () => {
           { email: { startsWith: 'gh-' } },
           { email: { startsWith: 'link-' } },
           { email: { startsWith: 'unverified-' } },
-          { oauthAccounts: { some: { providerAccountId: { in: ['g-sub-1', 'g-sub-2', 'g-sub-3', '4242'] } } } },
+          { email: { startsWith: 'totp-' } },
+          { oauthAccounts: { some: { providerAccountId: { in: ['g-sub-1', 'g-sub-2', 'g-sub-3', 'g-sub-totp', '4242'] } } } },
         ],
       },
     });
@@ -146,6 +148,63 @@ describe('OAuth (e2e)', () => {
   it('rejects a garbage exchange code', async () => {
     const res = await request(app.getHttpServer()).post('/auth/oauth/exchange').send({ code: 'nope' });
     expect(res.status).toBe(401);
+  });
+
+  it('requires the TOTP code on social sign-in when 2FA is enabled', async () => {
+    // Password account, then enable 2FA through the real endpoints.
+    const email = `totp-${Date.now()}@example.com`;
+    const signup = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send({ email, password: 'correct-horse-battery' });
+    expect(signup.status).toBe(201);
+    const accessToken: string = signup.body.accessToken;
+
+    const setup = await request(app.getHttpServer())
+      .post('/auth/totp/setup')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(setup.status).toBe(201);
+    const secret: string = setup.body.secret;
+    const currentCode = () => hotp(base32Decode(secret), Math.floor(Date.now() / 30_000));
+
+    const enable = await request(app.getHttpServer())
+      .post('/auth/totp/enable')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ code: currentCode() });
+    expect(enable.status).toBe(200);
+
+    // A Google identity linked to this 2FA account.
+    googleProfile = { sub: 'g-sub-totp', email, email_verified: true };
+    const { redirect } = await runFlow('google');
+    const code = redirect.searchParams.get('code')!;
+    expect(code).toBeTruthy();
+
+    // 1) Exchanging without a TOTP code → 401 totp_required, no tokens.
+    const noTotp = await request(app.getHttpServer()).post('/auth/oauth/exchange').send({ code });
+    expect(noTotp.status).toBe(401);
+    expect(noTotp.body.totp_required).toBe(true);
+    expect(noTotp.body.accessToken).toBeUndefined();
+
+    // 2) A wrong code → 401, and the exchange code is NOT consumed (retryable).
+    const wrongCode = currentCode() === '000000' ? '111111' : '000000';
+    const wrong = await request(app.getHttpServer())
+      .post('/auth/oauth/exchange')
+      .send({ code, totpCode: wrongCode });
+    expect(wrong.status).toBe(401);
+    expect(wrong.body.totp_required).toBe(true);
+
+    // 3) The correct code completes the sign-in.
+    const ok = await request(app.getHttpServer())
+      .post('/auth/oauth/exchange')
+      .send({ code, totpCode: currentCode() });
+    expect(ok.status).toBe(200);
+    expect(ok.body.accessToken).toBeDefined();
+    expect(ok.body.user.email).toBe(email);
+
+    // 4) …and the code is still single-use afterwards.
+    const replay = await request(app.getHttpServer())
+      .post('/auth/oauth/exchange')
+      .send({ code, totpCode: currentCode() });
+    expect(replay.status).toBe(401);
   });
 
   it('links a Google identity to an existing password account by verified email', async () => {

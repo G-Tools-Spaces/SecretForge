@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EnvService } from '../config/env.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthService, TokenPair } from './auth.service';
+import { TotpService } from './totp.service';
 
 export type OAuthProvider = 'google' | 'github';
 
@@ -32,6 +33,10 @@ const EXCHANGE_CODE_TTL_MS = 60 * 1000;
  *            302 to WEB_ORIGIN/auth/callback?code=…
  *   browser → POST /auth/oauth/exchange       → real access+refresh tokens
  *
+ * When the account has 2FA enabled, the exchange code is "pending": the
+ * exchange endpoint refuses to issue tokens (401 totp_required) until the
+ * client re-posts the code together with a valid authenticator code.
+ *
  * Security notes:
  *  - `state` is a single-use random value with a 10-minute TTL (login CSRF),
  *    persisted in the DB (review M2) so the flow survives restarts and works
@@ -48,6 +53,7 @@ export class OAuthService {
     private readonly env: EnvService,
     private readonly audit: AuditService,
     private readonly auth: AuthService,
+    private readonly totp: TotpService,
   ) {}
 
   isEnabled(provider: OAuthProvider): boolean {
@@ -105,11 +111,15 @@ export class OAuthService {
     const profile = await this.fetchProfile(provider, code);
     const user = await this.findOrCreateUser(provider, profile, ip);
 
+    // 2FA: a provider-verified identity is only factor #1. When the account
+    // has TOTP enabled, mark the exchange code as pending — it cannot be
+    // redeemed until the second factor is presented (see exchange()).
     const exchangeCode = randomBytes(32).toString('base64url');
     await this.prisma.oAuthExchangeCode.create({
       data: {
         codeHash: createHash('sha256').update(exchangeCode).digest('hex'),
         userId: user.id,
+        pendingTotpUserId: user.totpEnabled ? user.id : null,
         expiresAt: new Date(Date.now() + EXCHANGE_CODE_TTL_MS),
       },
     });
@@ -118,7 +128,11 @@ export class OAuthService {
   }
 
   /** Redeem a single-use exchange code for a real token pair. */
-  async exchange(code: string, ip?: string): Promise<TokenPair & { user: { id: string; email: string; name: string | null } }> {
+  async exchange(
+    code: string,
+    ip?: string,
+    totpCode?: string,
+  ): Promise<TokenPair & { user: { id: string; email: string; name: string | null } }> {
     const codeHash = createHash('sha256').update(code).digest('hex');
     const row = await this.prisma.oAuthExchangeCode.findUnique({
       where: { codeHash },
@@ -127,6 +141,31 @@ export class OAuthService {
 
     if (!row || row.consumedAt || row.expiresAt < new Date()) {
       throw new UnauthorizedException('This sign-in code is invalid or has expired — please try again');
+    }
+
+    // 2FA gate: the code stays UNCONSUMED while the second factor is missing
+    // or wrong, so the user can retry within the code's 60-second TTL.
+    if (row.pendingTotpUserId) {
+      if (!totpCode) {
+        throw new UnauthorizedException({
+          message: 'Two-factor code required',
+          totp_required: true,
+        });
+      }
+      const codeOk = await this.totp.verifyLogin(row.pendingTotpUserId, totpCode);
+      if (!codeOk) {
+        await this.audit.record({
+          action: 'USER_LOGIN_FAILED',
+          userId: row.pendingTotpUserId,
+          resource: `auth/oauth/${row.user.email}`,
+          ip,
+          meta: { reason: 'invalid_totp' },
+        });
+        throw new UnauthorizedException({
+          message: 'Invalid two-factor code',
+          totp_required: true,
+        });
+      }
     }
 
     await this.prisma.oAuthExchangeCode.update({

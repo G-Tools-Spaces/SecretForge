@@ -255,15 +255,15 @@ export const auth = {
     }
   },
   /** Redeem the single-use code from the OAuth callback redirect. */
-  async exchangeOAuthCode(code: string) {
+  async exchangeOAuthCode(code: string, totpCode?: string) {
     const res = await fetch(`${API_BASE}/auth/oauth/exchange`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, ...(totpCode ? { totpCode } : {}) }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      throw new ApiError(res.status, body?.message ?? 'Social sign-in failed');
+      throw new ApiError(res.status, body?.message ?? 'Social sign-in failed', body?.totp_required === true);
     }
     const body = await res.json();
     localStorage.setItem('sf_access_token', body.accessToken);

@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { base32Decode, hotp } from '../src/auth/totp';
 import './setup-e2e';
 
 /**
@@ -123,6 +124,51 @@ describe('Auth (e2e)', () => {
       .post('/auth/refresh')
       .send({ refreshToken });
     expect(refresh.status).toBe(401);
+  });
+
+  it('requires a TOTP code at password login once 2FA is enabled', async () => {
+    const totpEmail = `totp-login-${Date.now()}@example.com`;
+    const signup = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send({ email: totpEmail, password });
+    expect(signup.status).toBe(201);
+    const token: string = signup.body.accessToken;
+
+    const setup = await request(app.getHttpServer())
+      .post('/auth/totp/setup')
+      .set('Authorization', `Bearer ${token}`);
+    expect(setup.status).toBe(201);
+    const secret: string = setup.body.secret;
+    const currentCode = () => hotp(base32Decode(secret), Math.floor(Date.now() / 30_000));
+
+    const enable = await request(app.getHttpServer())
+      .post('/auth/totp/enable')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ code: currentCode() });
+    expect(enable.status).toBe(200);
+
+    // Password alone is no longer enough — 401 totp_required, no tokens.
+    const noCode = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: totpEmail, password });
+    expect(noCode.status).toBe(401);
+    expect(noCode.body.totp_required).toBe(true);
+    expect(noCode.body.accessToken).toBeUndefined();
+
+    // Wrong code rejected…
+    const wrongCode = currentCode() === '000000' ? '111111' : '000000';
+    const wrong = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: totpEmail, password, totpCode: wrongCode });
+    expect(wrong.status).toBe(401);
+    expect(wrong.body.totp_required).toBe(true);
+
+    // …right code accepted.
+    const ok = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: totpEmail, password, totpCode: currentCode() });
+    expect(ok.status).toBe(200);
+    expect(ok.body.accessToken).toBeDefined();
   });
 
   it('stores only hashed refresh tokens in the database', async () => {
