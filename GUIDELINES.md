@@ -45,6 +45,7 @@ Organization  (your team/company)
   └── Project  (one app or service, e.g. "billing-api")
         └── Environment  (Development / Staging / Production, or custom)
               └── Secret  (a key-value pair, e.g. STRIPE_SECRET_KEY=sk_live_…)
+                    optionally filed under a Group  (e.g. "frontend", "backend")
 ```
 
 - **Organization** — the top-level workspace. All members and projects live here.
@@ -53,6 +54,9 @@ Organization  (your team/company)
   Development, Staging and Production; you can add custom ones.
 - **Secret** — a key + encrypted value inside one environment. Every change
   creates a new **version** (history is never lost).
+- **Secret group** — an optional label on a secret (e.g. `frontend`,
+  `backend`) that splits one environment into per-service namespaces. The
+  same key can exist once per group plus once ungrouped.
 - **Service token** — a read-only, single-environment credential for machines
   (CI jobs, deployed apps) — not for people.
 
@@ -146,7 +150,8 @@ Project → **Settings**:
 
 ## 6. Managing secrets
 
-Project → **Secrets**, then pick an environment tab.
+Project → **Secrets**, then pick an environment tab. The page is split into
+two tabs: **Secrets** (ungrouped keys) and **Groups** (per-service groups).
 
 ### 6.1 Adding / updating
 
@@ -154,30 +159,45 @@ Project → **Secrets**, then pick an environment tab.
 Every save creates a **new immutable version** — old values are kept in the
 version history, never overwritten.
 
-### 6.2 Revealing a value
+### 6.2 Organizing with groups
+
+Groups split one environment into per-service namespaces — e.g. a monorepo
+can keep `frontend` and `backend` keys separate inside the same `prod`
+environment.
+
+- **Groups tab → Create group**, then add secrets into it (the **Add secret**
+  and **Import** dialogs both have an optional *Group* field).
+- Group names: lowercase letters, digits and dashes, max 30 chars
+  (`frontend`, `billing-api`).
+- The same key can exist ungrouped **and** once per group — they are
+  independent secrets with independent version histories.
+- The CLI and SDKs fetch one group at a time (or the ungrouped set) — see
+  `--group` in §9 and the `group` option in §10/§11.
+
+### 6.3 Revealing a value
 
 Lists always show secrets **masked**. Click the reveal action to view a value.
 Reveals are **individually audit-logged and rate-limited** (60/min).
 
-### 6.3 Bulk import (.env paste)
+### 6.4 Bulk import (.env paste)
 
 **Import** → paste `.env`-style content (`KEY=value` lines) → all keys are
 upserted in one go. Requires the WRITE role or above.
 
-### 6.4 Export
+### 6.5 Export
 
 **Export** downloads all values in the environment as `.env` text. Exports are
 audit-logged and rate-limited (10/min) — treat the exported file like a
 password.
 
-### 6.5 Version history & rollback
+### 6.6 Version history & rollback
 
 Project → **Versions** → pick environment + secret → see every version, who
 changed it and when. Admins can **roll back** to any older version — rollback
 creates a *new* version copying the old value forward (history stays
 append-only).
 
-### 6.6 Deleting a secret
+### 6.7 Deleting a secret
 
 Requires project ADMIN. The secret and its version history are removed.
 
@@ -280,11 +300,14 @@ small npm package (`forge` command); it has no other system dependencies.
 
 #### Step 2 — Install the forge CLI
 
-From npm (recommended):
+From npm (recommended) — current release is **0.1.4**:
 
 ```bash
-npm install -g @gtools-spaces/cli
+npm install -g @gtools-spaces/cli        # or pin: @gtools-spaces/cli@0.1.4
 ```
+
+Two identical commands are installed: **`forge`** and **`secretforge`** —
+use whichever you like.
 
 Or install from the repo (contributors / pre-release):
 
@@ -354,7 +377,20 @@ forge logout                            # end the session
 
 - `forge run` is the recommended dev workflow: secrets are injected into the
   process environment in memory — nothing touches disk.
-- `forge pull` writes a real `.env` — make sure `.env` is in your `.gitignore`.
+- `forge pull` writes a real `.env` — make sure `.env` is in your `.gitignore`
+  (`forge pull --stdout` prints instead of writing a file — handy for pipes).
+
+**Working with groups:** every secret command accepts `-g, --group`:
+
+```bash
+forge init -g frontend                # pin this directory to the "frontend" group
+forge set API_URL=https://… -g backend
+forge list -g backend                 # without -g, `list` shows every group
+forge run -g frontend -- npm run dev
+```
+
+The group is stored in `.secretforge.json` by `forge init -g`, so you only
+need the flag once per directory.
 
 ### 9.4 Using a service token instead of login
 
@@ -365,7 +401,9 @@ forge list          # no login needed; read-only, single environment
 
 ## 10. Node.js SDK
 
-Package: `@gtools-spaces/sdk`
+Package: `@gtools-spaces/sdk` — ⚠️ **not yet published to npm** (the source
+lives in `packages/sdk-node` in the repo; install it from a checkout until
+the first npm release).
 
 ### Step-by-step setup
 
@@ -373,10 +411,11 @@ Package: `@gtools-spaces/sdk`
    (pick the environment your app needs). Copy the `sf_…` value.
 2. **Link your app** — run `forge init` in your app repo (creates
    `.secretforge.json`), or set env vars instead (step 4).
-3. **Install the SDK**:
+3. **Install the SDK** (from a repo checkout until it lands on npm):
 
    ```bash
-   npm install @gtools-spaces/sdk
+   npm run build -w packages/sdk-node            # in your SecretForge clone
+   npm install /path/to/SecretForge/packages/sdk-node
    ```
 
 4. **Provide the token** — either env vars:
@@ -404,8 +443,11 @@ Package: `@gtools-spaces/sdk`
    With explicit options:
 
    ```ts
-   await load({ token: process.env.SECRETFORGE_TOKEN!, env: 'prod' });
+   await load({ token: process.env.SECRETFORGE_TOKEN!, env: 'prod', group: 'backend' });
    ```
+
+   `group` is optional — defaults to `SECRETFORGE_GROUP` → the group in
+   `.secretforge.json` → ungrouped secrets only.
 
 6. **Run your app** — secrets come from the vault, not from `.env` files.
 
@@ -415,7 +457,8 @@ without secrets.
 
 ## 11. Python SDK
 
-Package: `secretforge` (stdlib-only — no dependencies).
+Package: `secretforge` on PyPI — current release **0.1.0** (stdlib-only,
+no dependencies, Python 3.9+).
 
 ### Step-by-step setup
 
@@ -425,7 +468,7 @@ Package: `secretforge` (stdlib-only — no dependencies).
 3. **Install the SDK**:
 
    ```bash
-   pip install secretforge
+   pip install secretforge        # or pin: secretforge==0.1.0
    ```
 
 4. **Provide the token**:
@@ -438,20 +481,22 @@ Package: `secretforge` (stdlib-only — no dependencies).
 5. **Load secrets at the top of your entrypoint**:
 
    ```python
-   from secretforge import load
-   import os
+   import secretforge, os
 
-   load()  # os.environ now contains your secrets
+   secretforge.config()  # os.environ now contains your secrets
 
    db_url = os.environ["DATABASE_URL"]
    ```
 
-   With explicit options:
+   `config()` merges into `os.environ` (real environment variables win).
+   Use `load()` if you just want a plain dict without touching `os.environ`:
 
    ```python
-   from secretforge import config
-   secrets = config(token=os.environ["SECRETFORGE_TOKEN"], env="prod")
+   secrets = secretforge.load(token=os.environ["SECRETFORGE_TOKEN"], env="prod", group="backend")
    ```
+
+   `group` is optional — defaults to `SECRETFORGE_GROUP` → the group in
+   `.secretforge.json` → ungrouped secrets only.
 
 6. **Run your app** as usual.
 
@@ -498,6 +543,11 @@ and denied access attempts (with reason + IP).
 Click your avatar (top right) → **Account settings**:
 
 - **Profile** — change your display name.
+- **Two-factor authentication (2FA)** — set up a TOTP authenticator app
+  (Google Authenticator, 1Password, …): scan the QR code, then enter the
+  6-digit code to confirm. From then on, **every** sign-in — email + password,
+  Google, or GitHub — requires the current code. Disabling 2FA requires a
+  current code too.
 - **Change password** — requires your current password; all *other* sessions
   are revoked automatically (a stolen session can't survive a password change).
   Not available for accounts that only use Google/GitHub sign-in.
@@ -513,6 +563,10 @@ Plain-English version of the security model:
   encrypted with AES-256-GCM, with a unique IV per write.
 - **Passwords** — hashed with argon2id (memory-hard, current OWASP
   recommendation). Never stored in readable form.
+- **Two-factor authentication** — TOTP secrets are AES-256-GCM-encrypted with
+  the master key at rest, and 2FA only activates after the user proves they
+  scanned the code. No session tokens are issued until the second factor
+  passes — on any sign-in method (password, Google, GitHub).
 - **Sessions** — short-lived (15 min) access tokens + single-use refresh
   tokens stored only as hashes. If a refresh token is ever replayed, the whole
   session is revoked — token theft is detectable.
@@ -546,6 +600,12 @@ The Google OAuth app is in Testing mode — ask the admin to add your Gmail unde
 `run` injects secrets into a process in memory (preferred). `pull` writes a
 `.env` file on disk — convenient, but treat the file as sensitive and never
 commit it.
+
+**Do I have to use groups?**
+No — groups are optional. Secrets without a group live in the default
+(ungrouped) namespace, and the CLI/SDKs behave exactly as before unless you
+pass `--group` / `group=`. Groups only exist to keep per-service keys apart
+inside one environment.
 
 **Who can see Production secrets?**
 Anyone with a project role (READ and above) *on that project* can reveal values
