@@ -7,6 +7,7 @@ import { useUser } from '@/lib/useUser';
 import { OrgShell } from '@/components/shell/AppShell';
 import { PageHeader, InlineError } from '@/components/ui';
 import { useToast } from '@/components/Toast';
+import TotpQr from '@/components/TotpQr';
 
 /** Account settings: display name and password. */
 export default function AccountPage() {
@@ -292,9 +293,16 @@ export default function AccountPage() {
               </>
             ) : totpSetup ? (
               <>
+                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <TotpQr value={totpSetup.otpauthUrl} size={176} />
+                  <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                    <strong>1.</strong> Scan the QR code with your authenticator app.
+                  </p>
+                </div>
+
                 <div className="notice" style={{ marginTop: 14, fontSize: 13 }}>
                   <p style={{ margin: '0 0 6px' }}>
-                    <strong>1.</strong> Add this secret to your authenticator app (manual entry):
+                    <strong>2.</strong> Can't scan? Enter this secret manually:
                   </p>
                   <code
                     style={{
@@ -308,23 +316,6 @@ export default function AccountPage() {
                     }}
                   >
                     {totpSetup.secret}
-                  </code>
-                  <p style={{ margin: '10px 0 0' }}>
-                    <strong>2.</strong> Or scan this URL as a QR code:
-                  </p>
-                  <code
-                    style={{
-                      display: 'block',
-                      marginTop: 4,
-                      padding: '6px 10px',
-                      background: 'var(--bg-2)',
-                      borderRadius: 6,
-                      fontSize: 11,
-                      wordBreak: 'break-all',
-                      userSelect: 'all',
-                    }}
-                  >
-                    {totpSetup.otpauthUrl}
                   </code>
                   <p style={{ margin: '10px 0 0' }}>
                     <strong>3.</strong> Enter the 6-digit code the app shows to confirm and enable.
