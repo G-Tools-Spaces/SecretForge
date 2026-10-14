@@ -206,7 +206,7 @@ export default function MembersPage() {
                           className="select"
                           value={m.role}
                           onChange={(e) => changeRole(m.userId, e.target.value)}
-                          style={{ padding: '5px 28px 5px 8px', fontSize: 12, width: 'auto' }}
+                          style={{ minWidth: 110 }}
                         >
                           <option value="ADMIN">ADMIN</option>
                           <option value="WRITE">WRITE</option>
