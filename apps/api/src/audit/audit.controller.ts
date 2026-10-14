@@ -57,6 +57,9 @@ export class AuditController {
     const take = Math.min(Math.max(parseInt(limit ?? '50', 10) || 50, 1), 200);
     const skip = Math.max(parseInt(offset ?? '0', 10) || 0, 0);
 
+    // SECURITY: scope strictly to the user's orgs. Never build an OR branch
+    // with `undefined` — Prisma ignores undefined fields, so `{ projectId: undefined }`
+    // would degrade to `{}` and match EVERY row (cross-org audit leak).
     const where = {
       ...projectFilter,
       ...(action ? { action } : {}),
@@ -68,7 +71,10 @@ export class AuditController {
             },
           }
         : {}),
-      OR: [{ orgId: { in: orgIds } }, { projectId: projectFilter.projectId }],
+      OR: [
+        { orgId: { in: orgIds } },
+        ...(projectFilter.projectId ? [{ projectId: projectFilter.projectId }] : []),
+      ],
     };
 
     const [entries, total] = await this.prisma.$transaction([
