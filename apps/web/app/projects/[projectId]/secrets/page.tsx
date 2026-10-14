@@ -417,40 +417,42 @@ export default function SecretsPage() {
                     </td>
                     <td className="muted">v{s.version}</td>
                     <td className="muted">{new Date(s.updatedAt).toLocaleDateString()}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      {revealed[idOf(s)] === undefined ? (
-                        <BusyButton className="btn btn-sm" onClick={() => reveal(s)}>
-                          <Icon name="eye" size={13} /> Reveal
-                        </BusyButton>
-                      ) : (
-                        <button
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        {revealed[idOf(s)] === undefined ? (
+                          <BusyButton className="btn btn-sm" onClick={() => reveal(s)}>
+                            <Icon name="eye" size={13} /> Reveal
+                          </BusyButton>
+                        ) : (
+                          <button
+                            className="btn btn-sm"
+                            onClick={() =>
+                              setRevealed((r) => {
+                                const next = { ...r };
+                                delete next[idOf(s)];
+                                return next;
+                              })
+                            }
+                          >
+                            <Icon name="eyeOff" size={13} /> Hide
+                          </button>
+                        )}
+                        <a
                           className="btn btn-sm"
-                          onClick={() =>
-                            setRevealed((r) => {
-                              const next = { ...r };
-                              delete next[idOf(s)];
-                              return next;
-                            })
-                          }
+                          style={{ textDecoration: 'none' }}
+                          href={`/projects/${projectId}/versions?key=${encodeURIComponent(s.key)}&group=${encodeURIComponent(s.group)}`}
                         >
-                          <Icon name="eyeOff" size={13} /> Hide
-                        </button>
-                      )}
-                      <a
-                        className="btn btn-sm"
-                        style={{ marginLeft: 6, textDecoration: 'none' }}
-                        href={`/projects/${projectId}/versions?key=${encodeURIComponent(s.key)}&group=${encodeURIComponent(s.group)}`}
-                      >
-                        <Icon name="refresh" size={13} /> History
-                      </a>
-                      {canAdmin && (
-                        <BusyButton
-                          className="btn btn-danger btn-sm"
-                          onClick={() => removeSecret(s)}
-                        >
-                          <Icon name="trash" size={13} />
-                        </BusyButton>
-                      )}
+                          <Icon name="refresh" size={13} /> History
+                        </a>
+                        {canAdmin && (
+                          <BusyButton
+                            className="btn btn-danger btn-sm"
+                            onClick={() => removeSecret(s)}
+                          >
+                            <Icon name="trash" size={13} />
+                          </BusyButton>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
