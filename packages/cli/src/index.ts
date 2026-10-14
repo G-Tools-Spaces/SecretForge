@@ -1,5 +1,13 @@
 #!/usr/bin/env node
+import { readFileSync } from 'fs';
 import { Command } from 'commander';
+import { join } from 'path';
+
+// Read the version from package.json so `forge --version` never drifts.
+// (__dirname works because tsc compiles this to CommonJS.)
+const { version: cliVersion } = JSON.parse(
+  readFileSync(join(__dirname, '..', 'package.json'), 'utf8'),
+) as { version: string };
 import {
   cmdImport,
   cmdInit,
@@ -18,7 +26,7 @@ program
   .name('forge')
   .alias('secretforge')
   .description('SecretForge CLI — fetch and inject secrets; no more .env files.')
-  .version('0.1.0');
+  .version(cliVersion);
 
 program
   .command('login')
