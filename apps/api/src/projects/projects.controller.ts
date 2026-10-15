@@ -45,6 +45,14 @@ export class ProjectsController {
     return this.projects.get(projectId, user.id);
   }
 
+  /** Aggregated dashboard stats (secret counts per env + active tokens). */
+  @Get(':projectId/stats')
+  @UseGuards(ProjectRoleGuard)
+  @MinProjectRole('READ')
+  stats(@Param('projectId') projectId: string) {
+    return this.projects.stats(projectId);
+  }
+
   @Patch(':projectId')
   @UseGuards(ProjectRoleGuard)
   @MinProjectRole('ADMIN')

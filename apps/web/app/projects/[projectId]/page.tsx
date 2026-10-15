@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { api, AuditEntry, Project, SecretRow, ServiceTokenInfo } from '@/lib/api';
+import { api, AuditEntry, Project } from '@/lib/api';
 import { envLabel } from '@/lib/format';
 import { useUser } from '@/lib/useUser';
 import { ProjectShell } from '@/components/shell/AppShell';
@@ -36,26 +36,16 @@ export default function OverviewPage() {
         const p = await api<Project>(`/projects/${projectId}`);
         setProject(p);
 
-        // Count secrets per environment (masked lists are cheap).
-        const counts: Record<string, number> = {};
-        await Promise.all(
-          p.environments.map(async (e) => {
-            const s = await api<{ secrets: SecretRow[] }>(
-              `/projects/${projectId}/envs/${e.name}/secrets`,
-            );
-            counts[e.name] = s.secrets.length;
-          }),
-        );
-        setSecretCounts(counts);
+        // One aggregated call instead of N secret-list requests + a token list.
+        const s = await api<{
+          environments: Array<{ name: string; secrets: number }>;
+          activeTokens: number;
+        }>(`/projects/${projectId}/stats`);
+        setSecretCounts(Object.fromEntries(s.environments.map((e) => [e.name, e.secrets])));
+        setActiveTokens(s.activeTokens);
 
         const a = await api<{ entries: AuditEntry[] }>(`/audit?project=${projectId}&limit=8`);
         setAudit(a.entries);
-
-        const t = await api<{ tokens: ServiceTokenInfo[] }>(`/projects/${projectId}/tokens`);
-        const now = Date.now();
-        setActiveTokens(
-          t.tokens.filter((x) => !x.revokedAt && new Date(x.expiresAt).getTime() > now).length,
-        );
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load');

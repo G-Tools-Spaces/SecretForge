@@ -121,6 +121,29 @@ export class ProjectsService {
     return { ...safe, yourRole: member.role };
   }
 
+  /**
+   * Dashboard stats in two queries (no N+1): secret counts per environment
+   * via a relation count, plus the number of active (unrevoked, unexpired)
+   * service tokens. Powers the web Overview page.
+   */
+  async stats(projectId: string) {
+    const [envs, activeTokens] = await this.prisma.$transaction([
+      this.prisma.environment.findMany({
+        where: { projectId },
+        select: { name: true, _count: { select: { secrets: true } } },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.serviceToken.count({
+        where: { environment: { projectId }, revokedAt: null, expiresAt: { gt: new Date() } },
+      }),
+    ]);
+
+    return {
+      environments: envs.map((e) => ({ name: e.name, secrets: e._count.secrets })),
+      activeTokens,
+    };
+  }
+
   /** Rename a project (ADMIN — enforced by the guard). */
   async update(projectId: string, userId: string, name: string, ip?: string) {
     const project = await this.prisma.project.findUnique({ where: { id: projectId } });

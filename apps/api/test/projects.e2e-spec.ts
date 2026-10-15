@@ -221,6 +221,51 @@ describe('Projects & roles (e2e)', () => {
     expect(raw).not.toMatch(/"plaintext"\s*:/i);
   });
 
+  it('returns aggregated stats (secret counts per env + active tokens)', async () => {
+    // Seed: 2 secrets in dev, 1 in prod; 2 tokens, one revoked.
+    for (const [env, key] of [
+      ['dev', 'STATS_A'],
+      ['dev', 'STATS_B'],
+      ['prod', 'STATS_C'],
+    ] as const) {
+      const put = await request(app.getHttpServer())
+        .put(`/projects/${projectId}/envs/${env}/secrets/${key}`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ value: 'x' });
+      expect(put.status).toBe(200);
+    }
+    for (const name of ['stats-active', 'stats-revoked']) {
+      const created = await request(app.getHttpServer())
+        .post(`/projects/${projectId}/envs/dev/tokens`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ name, expiresInDays: 30 });
+      expect(created.status).toBe(201);
+      if (name === 'stats-revoked') {
+        const del = await request(app.getHttpServer())
+          .delete(`/projects/${projectId}/tokens/${created.body.id}`)
+          .set('Authorization', `Bearer ${aliceToken}`);
+        expect(del.status).toBe(204);
+      }
+    }
+
+    const res = await request(app.getHttpServer())
+      .get(`/projects/${projectId}/stats`)
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(res.status).toBe(200);
+    const counts = Object.fromEntries(
+      res.body.environments.map((e: { name: string; secrets: number }) => [e.name, e.secrets]),
+    );
+    expect(counts).toEqual({ dev: 2, prod: 1, staging: 0 });
+    expect(res.body.activeTokens).toBe(1);
+  });
+
+  it('blocks non-members from the stats endpoint', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/projects/${projectId}/stats`)
+      .set('Authorization', `Bearer ${carolToken}`);
+    expect(res.status).toBe(403);
+  });
+
   async function whoami(token: string) {
     const res = await request(app.getHttpServer())
       .get('/auth/me')
