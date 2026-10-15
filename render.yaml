@@ -15,7 +15,7 @@ services:
     buildCommand: npm ci --include=dev && npm run build
     # Apply pending migrations (idempotent no-op when up to date), then boot.
     startCommand: npm run db:deploy && node apps/api/dist/main.js
-    healthCheckPath: /auth/providers
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production

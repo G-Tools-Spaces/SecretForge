@@ -10,6 +10,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { SecretsModule } from './secrets/secrets.module';
 import { TokensModule } from './tokens/tokens.module';
 import { AuditModule } from './audit/audit.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AuditModule } from './audit/audit.module';
     TokensModule,
     AuditModule,
   ],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_GUARD,
