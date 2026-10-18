@@ -4,6 +4,10 @@
  * Browser API client for the SecretForge API.
  * Uses the Next.js rewrite proxy (/api/* → API server) so cookies stay
  * first-party and CORS is a non-issue.
+ *
+ * Credentials live ONLY in httpOnly SameSite=Strict cookies set by the API
+ * (sf_access + sf_refresh) — JavaScript can never read them, so XSS cannot
+ * steal tokens. Nothing auth-related is kept in localStorage.
  */
 
 const API_BASE = '/api';
@@ -19,70 +23,36 @@ export class ApiError extends Error {
   }
 }
 
-let accessToken: string | null = null;
-
-export function setAccessToken(token: string | null) {
-  accessToken = token;
-}
-
-export function getAccessToken(): string | null {
-  if (accessToken) return accessToken;
-  if (typeof window !== 'undefined') {
-    accessToken = localStorage.getItem('sf_access_token');
-  }
-  return accessToken;
-}
-
 /**
- * Refresh the access token. The REFRESH token lives in an httpOnly
- * SameSite=Strict cookie set by the API (review M5) — JavaScript (and
- * therefore XSS) can never read it. `credentials: 'include'` isn't needed
- * for same-origin /api/* proxy requests; cookies ride along automatically.
+ * Rotate the session via the httpOnly refresh cookie — on success the API
+ * sets a fresh access cookie. Returns false when the session is gone for
+ * good (the user must log in again). Cookies ride same-origin automatically,
+ * so no `credentials` option is needed.
  */
-async function refreshAccessToken(): Promise<string | null> {
+async function refreshSession(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ refreshToken: 'cookie' }),
-    });
-    if (!res.ok) return null;
-    const body = await res.json();
-    localStorage.setItem('sf_access_token', body.accessToken);
-    accessToken = body.accessToken;
-    return body.accessToken;
+    const res = await fetch(`${API_BASE}/auth/refresh`, { method: 'POST' });
+    return res.ok;
   } catch {
-    return null;
+    return false;
   }
 }
 
 export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
-  let token = getAccessToken();
-  if (!token) {
-    token = await refreshAccessToken();
-    if (!token) throw new ApiError(401, 'Not logged in');
-  }
-
-  let res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${token}`,
-      ...(init.headers ?? {}),
-    },
-  });
-
-  if (res.status === 401) {
-    token = await refreshAccessToken();
-    if (!token) throw new ApiError(401, 'Not logged in');
-    res = await fetch(`${API_BASE}${path}`, {
+  const send = () =>
+    fetch(`${API_BASE}${path}`, {
       ...init,
       headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${token}`,
         ...(init.headers ?? {}),
       },
     });
+
+  let res = await send();
+
+  // Access cookie missing/expired → rotate via the refresh cookie, retry once.
+  if (res.status === 401 && (await refreshSession())) {
+    res = await send();
   }
 
   if (!res.ok) {
@@ -224,9 +194,7 @@ export const auth = {
       throw new ApiError(res.status, body?.message ?? 'Login failed', body?.totp_required === true);
     }
     const body = await res.json();
-    // Refresh token is set as an httpOnly cookie by the API (M5) — never here.
-    localStorage.setItem('sf_access_token', body.accessToken);
-    accessToken = body.accessToken;
+    // Both tokens arrive as httpOnly cookies — nothing to store in JS.
     return body.user as Me;
   },
   async signup(email: string, password: string, name?: string) {
@@ -240,8 +208,6 @@ export const auth = {
       throw new ApiError(res.status, body?.message ?? 'Signup failed');
     }
     const body = await res.json();
-    localStorage.setItem('sf_access_token', body.accessToken);
-    accessToken = body.accessToken;
     return body.user as Me;
   },
   /** Which social sign-in providers the API has configured. */
@@ -266,19 +232,11 @@ export const auth = {
       throw new ApiError(res.status, body?.message ?? 'Social sign-in failed', body?.totp_required === true);
     }
     const body = await res.json();
-    localStorage.setItem('sf_access_token', body.accessToken);
-    accessToken = body.accessToken;
     return body.user as Me;
   },
   logout() {
-    // The httpOnly refresh cookie rides along; the API clears it.
-    fetch(`${API_BASE}/auth/logout`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ refreshToken: 'cookie' }),
-    }).catch(() => {});
-    localStorage.removeItem('sf_access_token');
-    localStorage.removeItem('sf_refresh_token'); // legacy cleanup
-    accessToken = null;
+    // The httpOnly cookies ride along; the API revokes the session and
+    // clears both cookies. Fire-and-forget — local state resets regardless.
+    fetch(`${API_BASE}/auth/logout`, { method: 'POST' }).catch(() => {});
   },
 };

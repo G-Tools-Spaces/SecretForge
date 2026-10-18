@@ -31,15 +31,19 @@ export class LoginDto {
 }
 
 export class RefreshDto {
+  /** Optional: browsers send the refresh token via its httpOnly cookie. */
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  refreshToken!: string;
+  refreshToken?: string;
 }
 
 export class LogoutDto {
+  /** Optional: browsers send the refresh token via its httpOnly cookie. */
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  refreshToken!: string;
+  refreshToken?: string;
 }
 
 export class UpdateProfileDto {

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Ip, NotFoundException, Param, Post, Query, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
-import { setRefreshCookie } from './cookies';
+import { ACCESS_COOKIE_MAX_AGE_MS, setAccessCookie, setRefreshCookie } from './cookies';
 import { EnvService } from '../config/env.service';
 import { OAuthService, OAuthProvider } from './oauth.service';
 import { OAuthExchangeDto } from './dto';
@@ -69,6 +69,7 @@ export class OAuthController {
   async exchange(@Body() dto: OAuthExchangeDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
     const result = await this.oauth.exchange(dto.code, ip, dto.totpCode);
     setRefreshCookie(res, result.refreshToken, 30 * 24 * 60 * 60 * 1000);
+    setAccessCookie(res, result.accessToken, ACCESS_COOKIE_MAX_AGE_MS);
     return result;
   }
 }

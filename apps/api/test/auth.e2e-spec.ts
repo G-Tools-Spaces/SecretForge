@@ -65,6 +65,10 @@ describe('Auth (e2e)', () => {
     const res = await request(app.getHttpServer()).post('/auth/login').send({ email, password });
     expect(res.status).toBe(200);
     expect(res.body.accessToken).toBeDefined();
+    // Web clients authenticate via httpOnly cookies (never JS-readable).
+    const cookies = (res.headers['set-cookie'] ?? []) as unknown as string[];
+    expect(cookies.some((c) => c.startsWith('sf_access=') && c.includes('HttpOnly'))).toBe(true);
+    expect(cookies.some((c) => c.startsWith('sf_refresh=') && c.includes('HttpOnly'))).toBe(true);
   });
 
   it('rejects a wrong password', async () => {
@@ -182,5 +186,45 @@ describe('Auth (e2e)', () => {
     // The stored hash must not be the raw token.
     expect(sessions[0].hashedRefreshToken).not.toBe(login.body.refreshToken);
     expect(sessions[0].hashedRefreshToken).toMatch(/^[a-f0-9]{64}$/); // sha256 hex
+  });
+
+  it('runs a full cookie-only session: me → refresh → logout', async () => {
+    const jarEmail = `cookie-${Date.now()}@example.com`;
+    const pick = (name: string, cs: string[]) => cs.find((c) => c.startsWith(`${name}=`))!.split(';')[0];
+
+    const signup = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send({ email: jarEmail, password, name: 'Cookie' });
+    expect(signup.status).toBe(201);
+    let cookies = (signup.headers['set-cookie'] ?? []) as unknown as string[];
+    expect(cookies.some((c) => c.startsWith('sf_access=') && c.includes('HttpOnly'))).toBe(true);
+    expect(cookies.some((c) => c.startsWith('sf_refresh=') && c.includes('HttpOnly'))).toBe(true);
+
+    // Cookie-only auth on a guarded route — no Authorization header.
+    const me = await request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Cookie', pick('sf_access', cookies));
+    expect(me.status).toBe(200);
+    expect(me.body.email).toBe(jarEmail);
+
+    // Refresh with ONLY the refresh cookie → both cookies rotate.
+    const refreshed = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', pick('sf_refresh', cookies))
+      .send({});
+    expect(refreshed.status).toBe(200);
+    cookies = (refreshed.headers['set-cookie'] ?? []) as unknown as string[];
+    expect(cookies.some((c) => c.startsWith('sf_access='))).toBe(true);
+    expect(cookies.some((c) => c.startsWith('sf_refresh='))).toBe(true);
+
+    // Logout with the rotated refresh cookie → both cookies cleared.
+    const out = await request(app.getHttpServer())
+      .post('/auth/logout')
+      .set('Cookie', pick('sf_refresh', cookies))
+      .send({});
+    expect(out.status).toBe(204);
+    const cleared = (out.headers['set-cookie'] ?? []) as unknown as string[];
+    expect(cleared.some((c) => c.startsWith('sf_access=') && c.includes('Expires=Thu, 01 Jan 1970'))).toBe(true);
+    expect(cleared.some((c) => c.startsWith('sf_refresh=') && c.includes('Expires=Thu, 01 Jan 1970'))).toBe(true);
   });
 });

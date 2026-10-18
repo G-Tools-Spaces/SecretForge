@@ -11,7 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TotpService } from './totp.service';
 import { AuditService } from '../audit/audit.service';
 import { EnvService } from '../config/env.service';
-import { REFRESH_COOKIE, clearRefreshCookie, readCookie, setRefreshCookie } from './cookies';
+import { ACCESS_COOKIE_MAX_AGE_MS, REFRESH_COOKIE, clearAccessCookie, clearRefreshCookie, readCookie, setAccessCookie, setRefreshCookie } from './cookies';
 
 type AuthedRequest = Request & { user?: AuthedUser };
 
@@ -33,6 +33,7 @@ export class AuthController {
   async signup(@Body() dto: SignupDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
     const result = await this.auth.signup(dto, ip);
     setRefreshCookie(res, result.refreshToken, 30 * 24 * 60 * 60 * 1000);
+    setAccessCookie(res, result.accessToken, ACCESS_COOKIE_MAX_AGE_MS);
     return result;
   }
 
@@ -42,6 +43,7 @@ export class AuthController {
   async login(@Body() dto: LoginDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
     const result = await this.auth.login(dto, ip);
     setRefreshCookie(res, result.refreshToken, 30 * 24 * 60 * 60 * 1000);
+    setAccessCookie(res, result.accessToken, ACCESS_COOKIE_MAX_AGE_MS);
     return result;
   }
 
@@ -57,8 +59,10 @@ export class AuthController {
     // M5: prefer the httpOnly cookie; fall back to the body value for the CLI
     // (which can't use cookies). Both are rotated server-side.
     const token = readCookie(req, REFRESH_COOKIE) ?? dto.refreshToken;
+    if (!token) throw new UnauthorizedException('Missing refresh token');
     const result = await this.auth.refresh(token, ip);
     setRefreshCookie(res, result.refreshToken, 30 * 24 * 60 * 60 * 1000);
+    setAccessCookie(res, result.accessToken, ACCESS_COOKIE_MAX_AGE_MS);
     return result;
   }
 
@@ -73,8 +77,11 @@ export class AuthController {
     @Res({ passthrough: true }) res?: Response,
   ) {
     const token = readCookie(req, REFRESH_COOKIE) ?? dto.refreshToken;
-    await this.auth.logout(token, user?.id, ip);
-    if (res) clearRefreshCookie(res);
+    if (token) await this.auth.logout(token, user?.id, ip);
+    if (res) {
+      clearRefreshCookie(res);
+      clearAccessCookie(res);
+    }
   }
 
   // ── Two-factor authentication (review M4) ─────────────────────────────
@@ -173,6 +180,7 @@ export class AuthController {
     });
 
     setRefreshCookie(res, tokens.refreshToken, 30 * 24 * 60 * 60 * 1000);
+    setAccessCookie(res, tokens.accessToken, ACCESS_COOKIE_MAX_AGE_MS);
     return { ...tokens, user: { id: row.user.id, email: row.user.email, name: row.user.name } };
   }
 
@@ -196,11 +204,15 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   changePassword(
+    @Req() req: AuthedRequest,
     @CurrentUser() user: AuthedUser,
     @Body() dto: ChangePasswordDto,
     @Body('refreshToken') refreshToken: string | undefined,
     @Ip() ip: string,
   ) {
-    return this.auth.changePassword(user.id, dto, refreshToken, ip);
+    // Web sends its refresh token via the httpOnly cookie (never JS-readable);
+    // the CLI may pass it in the body instead.
+    const current = readCookie(req, REFRESH_COOKIE) ?? refreshToken;
+    return this.auth.changePassword(user.id, dto, current, ip);
   }
 }

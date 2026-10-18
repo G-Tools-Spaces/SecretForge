@@ -81,10 +81,11 @@ export default function AccountPage() {
     try {
       await api('/auth/change-password', {
         method: 'POST',
+        // The API reads this session's refresh token from the httpOnly
+        // cookie and keeps it alive while revoking every other session.
         body: JSON.stringify({
           currentPassword,
           newPassword,
-          refreshToken: localStorage.getItem('sf_refresh_token') ?? undefined,
         }),
       });
       toast.show('Password changed — other sessions were signed out');

@@ -43,6 +43,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = () => {
+    // Cookies are revoked + cleared server-side by auth.logout() (see
+    // Topbar); here we reset local state. The localStorage cleanup only
+    // matters for sessions created before tokens moved to cookies.
     localStorage.removeItem('sf_access_token');
     localStorage.removeItem('sf_refresh_token');
     setUser(null);
