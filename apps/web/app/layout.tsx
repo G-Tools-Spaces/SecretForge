@@ -17,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Support/chat widget (loads after the page is idle). */}
         <Script
           src="https://widget.ping.gtools.in/widget.js"
-          data-bot-id="bot_stkhkbf"
+          data-bot-id="bot_xtmb96a"
           strategy="lazyOnload"
         />
       </body>
