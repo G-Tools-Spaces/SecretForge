@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
+// @ts-expect-error This stylesheet is loaded by Next.js as a side effect.
 import './globals.css';
+// @ts-expect-error This package stylesheet is loaded by Next.js as a side effect.
 import '@tabler/icons-webfont/dist/tabler-icons.min.css';
 import { Providers } from './providers';
 

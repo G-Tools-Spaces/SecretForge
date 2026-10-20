@@ -4,13 +4,13 @@ const isDev = process.env.NODE_ENV !== 'production';
 // scripts/styles, so 'unsafe-inline' is required unless we wire up nonces.
 // Dev additionally needs 'unsafe-eval' for react-refresh.
 // Third-party allowances are for the Pingie support widget only:
-//   script: ping-1-4hz7.onrender.com (widget.js)
-//   connect: pingbackend-d2rt.onrender.com (widget API + SSE streaming)
+//   script: widget.ping.gtools.in (widget.js)
+//   connect: pingbackend-htry.onrender.com (widget API)
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} https://ping-1-4hz7.onrender.com`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} https://widget.ping.gtools.in`,
   "style-src 'self' 'unsafe-inline'",
-  `connect-src 'self'${isDev ? ' http://localhost:4000 ws://localhost:3000' : ''} https://pingbackend-d2rt.onrender.com`,
+  `connect-src 'self'${isDev ? ' http://localhost:4000 ws://localhost:3000' : ''} https://pingbackend-htry.onrender.com`,
   "img-src 'self' data:",
   "font-src 'self' data:",
   "object-src 'none'",
