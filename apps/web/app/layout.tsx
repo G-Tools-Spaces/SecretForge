@@ -15,11 +15,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>{children}</Providers>
         {/* Support/chat widget (loads after the page is idle). */}
-        <script
-         src="https://widget.ping.gtools.in/widget.js"
-         data-bot-id="bot_stkhkbf"
-         defer>
-         </script>
+        <Script
+          src="https://widget.ping.gtools.in/widget.js"
+          data-bot-id="bot_stkhkbf"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );
